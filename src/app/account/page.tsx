@@ -85,34 +85,20 @@ export default async function AccountPage() {
                   <th>Game</th>
                   <th>Bet</th>
                   <th>Result</th>
-                  <th>Profit</th>
-                  <th>Virtual balance</th>
+                  <th>Payout</th>
                   <th>Date</th>
                 </tr>
               </thead>
               <tbody>
-                {history.map((game) => {
-                  const betAmount = Number(game.betAmount);
-                  const profit = Number(game.profit);
-                  const balanceAfter = Number(game.balanceAfter);
-                  return (
-                    <tr key={game.id}>
-                      <td>{game.game}</td>
-                      <td>{betAmount.toFixed(2)}</td>
-                      <td>{game.result}</td>
-                      <td
-                        className={
-                          profit >= 0 ? "positive" : "negative"
-                        }
-                      >
-                        {profit > 0 ? "+" : ""}
-                        {profit.toFixed(2)}
-                      </td>
-                      <td>{balanceAfter.toLocaleString()}</td>
-                      <td>{game.createdAt.toLocaleDateString()}</td>
-                    </tr>
-                  );
-                })}
+                {history.map((game) => (
+                  <tr key={game.id}>
+                    <td>{game.game}</td>
+                    <td>{Number(game.betAmount).toFixed(2)}</td>
+                    <td>{game.result}</td>
+                    <td>{Number(game.payout).toFixed(2)}</td>
+                    <td>{game.createdAt.toLocaleDateString()}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
