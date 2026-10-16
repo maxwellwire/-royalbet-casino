@@ -75,7 +75,9 @@ return NextResponse.json(
 console.error(“Registration error:”, error);
 
 return NextResponse.json(
-  { error: "Unable to create your account. Please try again." },
+  {
+    error: "Unable to create your account. Please try again.",
+  },
   { status: 500 }
 );
 
