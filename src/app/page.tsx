@@ -1,162 +1,202 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Crown,
+  Dice5,
   ShieldCheck,
-  Trophy,
   Sparkles,
-  ChevronRight,
+  Trophy
 } from "lucide-react";
-
+const features = [
+  {
+    icon: Dice5,
+    title: "Casino Games",
+    text: "Explore interactive games using virtual credits."
+  },
+  {
+    icon: ShieldCheck,
+    title: "Your Account",
+    text: "Register and view your account information."
+  },
+  {
+    icon: Trophy,
+    title: "Game History",
+    text: "Keep track of recorded game results."
+  }
+];
 export default function HomePage() {
   return (
-    <main className="home">
-      <div className="phone-container">
-        <header className="header">
-          <Link href="/" className="logo">
-            <span className="logo-icon">R</span>
-            <span className="logo-text">
-              ROYAL<span>BET</span>
-            </span>
-          </Link>
-
-          <Link href="/login" className="header-login">
-            Log in
-          </Link>
-        </header>
-
-        <section className="hero">
-          <div className="hero-badge">
-            <span className="live-dot" />
-            YOUR NEXT CHAPTER STARTS HERE
+    <div className="page-container">
+      {/* HERO SECTION */}
+      <section className="hero">
+        <div className="hero-content">
+          <div className="eyebrow">
+            <Sparkles size={15} />
+            THE ROYAL EXPERIENCE
           </div>
-
-          <div className="hero-crown">♛</div>
-
           <h1>
             PLAY WITH
             <br />
-            <span>CONFIDENCE.</span>
+            <span className="gold-text">CONFIDENCE.</span>
           </h1>
-
           <p className="hero-description">
-            Welcome to RoyalBet. A modern entertainment experience designed
-            around you.
+            Step into RoyalBet, a premium casino-style
+            experience with a bold identity, elegant design,
+            and interactive games.
           </p>
-
           <div className="hero-actions">
-            <Link href="/register" className="primary-button">
-              Create Account
-              <ArrowRight size={19} />
+            <Link
+              href="/casino"
+              className="button button-gold button-large"
+            >
+              Explore casino <ArrowRight size={18} />
             </Link>
-
-            <Link href="/login" className="secondary-button">
-              I already have an account
+            <Link
+              href="/register"
+              className="button button-outline button-large"
+            >
+              Create account
             </Link>
           </div>
-
-          <div className="hero-visual">
-            <div className="visual-glow" />
-
-            <div className="royal-card">
-              <div className="card-top">
-                <span>ROYALBET</span>
-                <Sparkles size={19} />
-              </div>
-
-              <div className="card-symbol">♛</div>
-
-              <div className="card-bottom">
-                <span>YOUR GAME.</span>
-                <span>YOUR CHOICE.</span>
-              </div>
-            </div>
-
-            <div className="floating-star star-one">✦</div>
-            <div className="floating-star star-two">✧</div>
-            <div className="floating-star star-three">✦</div>
+          <div className="hero-trust">
+            <span>
+              <ShieldCheck size={16} />
+              Account-based access
+            </span>
+            <span>
+              <Crown size={16} />
+              Premium design
+            </span>
           </div>
-        </section>
-
-        <section className="features">
-          <div className="section-heading">
-            <span className="eyebrow">THE ROYAL EXPERIENCE</span>
-            <h2>Made for you.</h2>
-            <p>A simple experience from the moment you arrive.</p>
+        </div>
+        <div className="hero-art">
+          <div className="orbit orbit-one" />
+          <div className="orbit orbit-two" />
+          <div className="hero-crown">
+            <Crown size={100} strokeWidth={1.2} />
           </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">
-              <ShieldCheck size={23} />
-            </div>
-
-            <div className="feature-content">
-              <h3>Your account, your space</h3>
-              <p>Access your personal account after signing in.</p>
-            </div>
-
-            <ChevronRight size={19} className="feature-arrow" />
+          <div className="hero-chip chip-one">ROYAL</div>
+          <div className="hero-chip chip-two">BET</div>
+          <div className="hero-art-caption">
+            <span>EST.</span>
+            <strong>ROYALBET CASINO</strong>
+            <span>THE GAME STARTS HERE</span>
           </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">
-              <Sparkles size={23} />
-            </div>
-
-            <div className="feature-content">
-              <h3>A clean experience</h3>
-              <p>Enjoy a simple interface designed for mobile screens.</p>
-            </div>
-
-            <ChevronRight size={19} className="feature-arrow" />
+        </div>
+      </section>
+      {/* 200% BONUS PROMOTION */}
+      <section className="promo-banner">
+        <div>
+          <div className="eyebrow">
+            <Sparkles size={15} />
+            ROYALBET WELCOME OFFER
           </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">
-              <Trophy size={23} />
-            </div>
-
-            <div className="feature-content">
-              <h3>Your journey starts here</h3>
-              <p>Create an account to get started.</p>
-            </div>
-
-            <ChevronRight size={19} className="feature-arrow" />
-          </div>
-        </section>
-
-        <section className="bottom-cta">
-          <div className="cta-decoration">♛</div>
-
-          <span className="eyebrow">WELCOME TO ROYALBET</span>
-
-          <h2>Ready to get started?</h2>
-
-          <p>Create your account to continue.</p>
-
-          <Link href="/register" className="primary-button bottom-button">
-            Join RoyalBet
-            <ArrowRight size={19} />
-          </Link>
-        </section>
-
-        <footer className="footer">
-          <Link href="/" className="footer-logo">
-            ROYAL<span>BET</span>
-          </Link>
-
-          <div className="footer-links">
-            <Link href="/terms">Terms</Link>
-            <span>•</span>
-            <Link href="/privacy">Privacy</Link>
-          </div>
-
-          <p>© {new Date().getFullYear()} RoyalBet. All rights reserved.</p>
-
-          <p className="responsible-text">
-            18+ only. Please play responsibly.
+          <h2>
+            GET <span className="gold-text">200% BONUS</span>
+          </h2>
+          <p>
+            Welcome to RoyalBet. Explore our casino-style
+            games with virtual demo credits.
           </p>
-        </footer>
-      </div>
-    </main>
+          <small>
+            Virtual-credit experience only. No real-money wagering.
+          </small>
+          {/* TELEGRAM PAYMENTS CONTACT */}
+          <div className="hero-actions">
+            <a
+              href="https://t.me/RoyalBetPayments"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button button-outline"
+            >
+              Contact Payments Admin
+            </a>
+          </div>
+        </div>
+        <Link
+          href="/register"
+          className="button button-gold"
+        >
+          Join RoyalBet <ArrowRight size={17} />
+        </Link>
+      </section>
+      {/* EXPERIENCE STATS */}
+      <section className="stats-grid">
+        <div className="stat-card">
+          <span>EXPERIENCE</span>
+          <strong>Premium</strong>
+          <small>Designed for mobile and desktop</small>
+        </div>
+        <div className="stat-card">
+          <span>GAMES</span>
+          <strong>Interactive</strong>
+          <small>Start with our dice game</small>
+        </div>
+        <div className="stat-card">
+          <span>PLAY MODE</span>
+          <strong>Virtual</strong>
+          <small>No real-money wagering</small>
+        </div>
+      </section>
+      {/* FEATURES */}
+      <section className="section">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">WHY ROYALBET</div>
+            <h2>
+              A BETTER WAY TO{" "}
+              <span className="gold-text">PLAY.</span>
+            </h2>
+          </div>
+          <Link href="/casino" className="text-link">
+            View games <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="feature-grid">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <article
+                className="feature-card"
+                key={feature.title}
+              >
+                <div className="feature-icon">
+                  <Icon size={26} />
+                </div>
+                <h3>{feature.title}</h3>
+                <p>{feature.text}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+      {/* FINAL CALL TO ACTION */}
+      <section className="promo-banner">
+        <div>
+          <div className="eyebrow">YOUR NEXT MOVE</div>
+          <h2>READY TO ENTER THE ROYAL ROOM?</h2>
+          <p>
+            Create an account and discover the RoyalBet
+            virtual-credit gaming experience.
+          </p>
+        </div>
+        <div className="hero-actions">
+          <Link
+            href="/register"
+            className="button button-gold"
+          >
+            Create account <ArrowRight size={17} />
+          </Link>
+          <a
+            href="https://t.me/RoyalBetPayments"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button button-outline"
+          >
+            Contact Payments Admin
+          </a>
+        </div>
+      </section>
+    </div>
   );
 }
