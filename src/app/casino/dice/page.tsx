@@ -24,7 +24,7 @@ export default async function DicePage() {
 
         <p>
           Welcome, {user.username}. Your virtual balance is{" "}
-          <strong>{user.demoCredits.toLocaleString()}</strong> credits.
+          <strong>{Number(user.balance).toLocaleString()}</strong> USDT.
         </p>
 
         <p>
