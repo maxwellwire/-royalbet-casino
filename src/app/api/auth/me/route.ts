@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json(
-        { user: null },
+        { error: "Not authenticated." },
         { status: 401 }
       );
     }
@@ -17,15 +17,18 @@ export async function GET() {
     return NextResponse.json({
       user: {
         id: user.id,
+        name: user.name,
         username: user.username,
         email: user.email,
         role: user.role,
-        demoCredits: user.demoCredits
-      }
+        balance: Number(user.balance),
+      },
     });
-  } catch {
+  } catch (error) {
+    console.error("Get current user error:", error);
+
     return NextResponse.json(
-      { error: "Unable to retrieve account." },
+      { error: "Unable to retrieve your account." },
       { status: 500 }
     );
   }
