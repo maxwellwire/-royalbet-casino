@@ -60,10 +60,12 @@ export default function HomePage() {
           </div>
           <div className="hero-trust">
             <span>
-              <ShieldCheck size={16} /> Account-based access
+              <ShieldCheck size={16} />
+              Account-based access
             </span>
             <span>
-              <Crown size={16} /> Premium design
+              <Crown size={16} />
+              Premium design
             </span>
           </div>
         </div>
@@ -82,7 +84,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-      {/* WELCOME BONUS BANNER */}
+      {/* 200% BONUS PROMOTION */}
       <section className="promo-banner">
         <div>
           <div className="eyebrow">
@@ -99,6 +101,17 @@ export default function HomePage() {
           <small>
             Virtual-credit experience only. No real-money wagering.
           </small>
+          {/* TELEGRAM PAYMENTS CONTACT */}
+          <div className="hero-actions">
+            <a
+              href="https://t.me/RoyalBetPayments"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button button-outline"
+            >
+              Contact Payments Admin
+            </a>
+          </div>
         </div>
         <Link
           href="/register"
@@ -125,7 +138,7 @@ export default function HomePage() {
           <small>No real-money wagering</small>
         </div>
       </section>
-      {/* FEATURES SECTION */}
+      {/* FEATURES */}
       <section className="section">
         <div className="section-heading">
           <div>
@@ -167,12 +180,22 @@ export default function HomePage() {
             virtual-credit gaming experience.
           </p>
         </div>
-        <Link
-          href="/register"
-          className="button button-gold"
-        >
-          Create account <ArrowRight size={17} />
-        </Link>
+        <div className="hero-actions">
+          <Link
+            href="/register"
+            className="button button-gold"
+          >
+            Create account <ArrowRight size={17} />
+          </Link>
+          <a
+            href="https://t.me/RoyalBetPayments"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button button-outline"
+          >
+            Contact Payments Admin
+          </a>
+        </div>
       </section>
     </div>
   );
