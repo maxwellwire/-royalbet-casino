@@ -39,9 +39,11 @@ export default async function AccountPage() {
       </section>
       <section className="account-grid">
         <article className="balance-card">
-          <span>VIRTUAL BALANCE</span>
-          <strong>{Number(user.demoCredits).toLocaleString()}</strong>
-          <small>Demo credits · No cash value</small>
+          <span>USDT BALANCE</span>
+          <strong>
+            {Number(user.balance).toFixed(2)} USDT
+          </strong>
+          <small>Account balance</small>
         </article>
         <article className="account-info-card">
           <ShieldCheck size={25} />
@@ -52,7 +54,7 @@ export default async function AccountPage() {
         <article className="account-info-card">
           <Dice5 size={25} />
           <h3>Explore games</h3>
-          <p>Try Royal Dice using virtual credits.</p>
+          <p>Explore Royal Dice.</p>
           <Link href="/casino/dice" className="text-link">
             Play now →
           </Link>
@@ -83,9 +85,9 @@ export default async function AccountPage() {
               <thead>
                 <tr>
                   <th>Game</th>
-                  <th>Bet</th>
+                  <th>Bet (USDT)</th>
                   <th>Result</th>
-                  <th>Payout</th>
+                  <th>Payout (USDT)</th>
                   <th>Date</th>
                 </tr>
               </thead>
