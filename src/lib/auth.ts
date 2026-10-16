@@ -14,16 +14,15 @@ export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
 
   const expiresAt = new Date(
-    Date.now() +
-      SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000
+    Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000
   );
 
   await prisma.session.create({
     data: {
       userId,
-      tokenHash: hashToken(token),
-      expiresAt
-    }
+      token: hashToken(token),
+      expiresAt,
+    },
   });
 
   const cookieStore = await cookies();
@@ -33,7 +32,7 @@ export async function createSession(userId: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    expires: expiresAt
+    expires: expiresAt,
   });
 }
 
@@ -47,11 +46,11 @@ export async function getCurrentUser() {
 
   const session = await prisma.session.findUnique({
     where: {
-      tokenHash: hashToken(token)
+      token: hashToken(token),
     },
     include: {
-      user: true
-    }
+      user: true,
+    },
   });
 
   if (!session) {
@@ -61,8 +60,8 @@ export async function getCurrentUser() {
   if (session.expiresAt <= new Date()) {
     await prisma.session.delete({
       where: {
-        id: session.id
-      }
+        id: session.id,
+      },
     });
 
     return null;
@@ -78,8 +77,8 @@ export async function destroyCurrentSession() {
   if (token) {
     await prisma.session.deleteMany({
       where: {
-        tokenHash: hashToken(token)
-      }
+        token: hashToken(token),
+      },
     });
   }
 
