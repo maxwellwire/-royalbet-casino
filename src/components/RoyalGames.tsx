@@ -1,828 +1,958 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type GameType = "aviator" | "slots" | "mines";
+type Point = { x: number; y: number };
 
 const STARTING_BALANCE = 1000;
+const MIN_BET = 1;
+const MAX_BET = 500;
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function money(value: number) {
-  return `${value.toFixed(2)} credits`;
-}
-
-export default function RoyalGames({
-  game,
-}: {
-  game: GameType;
-}) {
+export default function RoyalGames({ game }: { game: GameType }) {
   const [balance, setBalance] = useState(STARTING_BALANCE);
   const [bet, setBet] = useState(10);
-  const [message, setMessage] = useState(
-    "Choose your bet to begin."
-  );
+  const [message, setMessage] = useState("Place your bet to launch");
+  const [loading, setLoading] = useState(false);
 
   // Aviator
   const [multiplier, setMultiplier] = useState(1);
-  const [aviatorPlaying, setAviatorPlaying] = useState(false);
-  const [aviatorBet, setAviatorBet] = useState(0);
-  const [crashPoint, setCrashPoint] = useState(2);
+  const [playing, setPlaying] = useState(false);
   const [crashed, setCrashed] = useState(false);
+  const [cashedOut, setCashedOut] = useState(false);
+  const [crashAt, setCrashAt] = useState(0);
+  const [points, setPoints] = useState<Point[]>([{ x: 0, y: 92 }]);
+  const [rocket, setRocket] = useState<Point>({ x: 0, y: 92 });
 
-  const aviatorRoundRef = useRef(false);
+  const roundRef = useRef(false);
   const multiplierRef = useRef(1);
-  const crashPointRef = useRef(2);
-  const aviatorBetRef = useRef(0);
+  const crashAtRef = useRef(0);
+  const betRef = useRef(10);
+  const balanceRef = useRef(STARTING_BALANCE);
+  const startTimeRef = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Slots
-  const [reels, setReels] = useState(["🍒", "⭐", "💎"]);
-  const [spinning, setSpinning] = useState(false);
+  const [slotSymbols, setSlotSymbols] = useState(["🍒", "⭐", "🍋"]);
+  const [slotSpinning, setSlotSpinning] = useState(false);
 
   // Mines
   const [mineCount, setMineCount] = useState(3);
-  const [mines, setMines] = useState<number[]>([]);
+  const [mineTiles, setMineTiles] = useState<number[]>([]);
   const [revealed, setRevealed] = useState<number[]>([]);
-  const [minesActive, setMinesActive] = useState(false);
-  const [minesBet, setMinesBet] = useState(0);
+  const [minesOver, setMinesOver] = useState(true);
   const [mineMultiplier, setMineMultiplier] = useState(1);
-
-  const validBet =
-    Number.isFinite(bet) &&
-    bet >= 1 &&
-    bet <= balance;
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("royalbet-demo-balance");
-
       if (saved !== null) {
-        const value = Number(saved);
-
-        if (Number.isFinite(value) && value >= 0) {
-          setBalance(value);
+        const parsed = Number(saved);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          balanceRef.current = parsed;
+          setBalance(parsed);
         }
       }
     } catch {
-      // Continue with the initial demo balance.
+      // Continue with the demo balance if storage is unavailable.
+    }
+  }, []);
+
+  const updateBalance = useCallback((next: number) => {
+    const safe = Math.max(0, Math.round(next * 100) / 100);
+    balanceRef.current = safe;
+    setBalance(safe);
+
+    try {
+      localStorage.setItem("royalbet-demo-balance", String(safe));
+    } catch {
+      // The game still works without local storage.
+    }
+  }, []);
+
+  const clearRoundTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        "royalbet-demo-balance",
-        String(balance)
-      );
-    } catch {
-      // Browser storage is optional.
-    }
-  }, [balance]);
+    return () => {
+      roundRef.current = false;
+      clearRoundTimer();
+    };
+  }, [clearRoundTimer]);
 
-  // Aviator crash engine.
-  // The multiplier advances on a timer and the round ends at crashPoint.
-  useEffect(() => {
-    if (game !== "aviator" || !aviatorPlaying) {
+  const cashOut = useCallback(() => {
+    if (!roundRef.current) return;
+
+    roundRef.current = false;
+    clearRoundTimer();
+
+    const currentMultiplier = multiplierRef.current;
+    const payout = betRef.current * currentMultiplier;
+    updateBalance(balanceRef.current + payout);
+
+    setPlaying(false);
+    setCrashed(false);
+    setCashedOut(true);
+    setMessage(`Cashed out at ${currentMultiplier.toFixed(2)}x`);
+  }, [clearRoundTimer, updateBalance]);
+
+  const startAviator = useCallback(() => {
+    if (roundRef.current) return;
+
+    const stake = Math.floor(Number(bet));
+    if (!Number.isFinite(stake) || stake < MIN_BET || stake > MAX_BET) {
+      setMessage(`Bet must be between ${MIN_BET} and ${MAX_BET}`);
       return;
     }
 
-    const timer = window.setInterval(() => {
-      if (!aviatorRoundRef.current) {
-        return;
-      }
-
-      const next = Number(
-        (multiplierRef.current + 0.02).toFixed(2)
-      );
-
-      if (next >= crashPointRef.current) {
-        multiplierRef.current = crashPointRef.current;
-
-        setMultiplier(crashPointRef.current);
-        setAviatorPlaying(false);
-        setCrashed(true);
-
-        aviatorRoundRef.current = false;
-
-        setMessage(
-          `CRASH at ${crashPointRef.current.toFixed(2)}×! ` +
-            `You lost ${money(aviatorBetRef.current)}.`
-        );
-
-        return;
-      }
-
-      multiplierRef.current = next;
-      setMultiplier(next);
-    }, 100);
-
-    return () => window.clearInterval(timer);
-  }, [game, aviatorPlaying]);
-
-  function startAviator() {
-    if (!validBet || aviatorPlaying) return;
-
-    // Demo crash point: 1.20× to 8.00×.
-    // This is client-side demonstration logic, not secure gambling.
-    const nextCrash = randomInt(120, 800) / 100;
-
-    multiplierRef.current = 1;
-    crashPointRef.current = nextCrash;
-    aviatorBetRef.current = bet;
-
-    setCrashPoint(nextCrash);
-    setMultiplier(1);
-    setAviatorBet(bet);
-    setCrashed(false);
-    setBalance((previous) => previous - bet);
-
-    aviatorRoundRef.current = true;
-
-    setMessage("Plane taking off. Cash out before the crash!");
-    setAviatorPlaying(true);
-  }
-
-  function cashOutAviator() {
-    if (!aviatorPlaying || !aviatorRoundRef.current) return;
-
-    const currentMultiplier = multiplierRef.current;
-    const payout = Number(
-      (aviatorBetRef.current * currentMultiplier).toFixed(2)
-    );
-
-    // Stop the round immediately so cash-out cannot be repeated.
-    aviatorRoundRef.current = false;
-
-    setBalance((previous) => previous + payout);
-    setAviatorPlaying(false);
-    setCrashed(false);
-
-    setMessage(
-      `Cashed out at ${currentMultiplier.toFixed(2)}×. ` +
-        `Payout: ${money(payout)}.`
-    );
-  }
-
-  function playSlots() {
-    if (!validBet || spinning) return;
-
-    setBalance((previous) => previous - bet);
-    setSpinning(true);
-    setMessage("Spinning...");
-
-    const symbols = ["🍒", "🍋", "⭐", "💎", "7️⃣", "👑"];
-
-    const nextReels = [
-      symbols[randomInt(0, symbols.length - 1)],
-      symbols[randomInt(0, symbols.length - 1)],
-      symbols[randomInt(0, symbols.length - 1)],
-    ];
-
-    window.setTimeout(() => {
-      setReels(nextReels);
-
-      let winMultiplier = 0;
-
-      if (
-        nextReels[0] === nextReels[1] &&
-        nextReels[1] === nextReels[2]
-      ) {
-        winMultiplier =
-          nextReels[0] === "👑"
-            ? 10
-            : nextReels[0] === "7️⃣"
-              ? 8
-              : 5;
-      } else if (
-        nextReels[0] === nextReels[1] ||
-        nextReels[1] === nextReels[2] ||
-        nextReels[0] === nextReels[2]
-      ) {
-        winMultiplier = 1.5;
-      }
-
-      const payout = Number((bet * winMultiplier).toFixed(2));
-
-      if (payout > 0) {
-        setBalance((previous) => previous + payout);
-        setMessage(`You won ${money(payout)} at ${winMultiplier}×!`);
-      } else {
-        setMessage("No match. Try another spin.");
-      }
-
-      setSpinning(false);
-    }, 700);
-  }
-
-  function startMines() {
-    if (!validBet || minesActive) return;
-
-    const nextMines: number[] = [];
-
-    while (nextMines.length < mineCount) {
-      const position = randomInt(0, 24);
-
-      if (!nextMines.includes(position)) {
-        nextMines.push(position);
-      }
+    if (stake > balanceRef.current) {
+      setMessage("Insufficient demo balance");
+      return;
     }
 
-    setBalance((previous) => previous - bet);
-    setMinesBet(bet);
-    setMines(nextMines);
+    clearRoundTimer();
+
+    updateBalance(balanceRef.current - stake);
+    betRef.current = stake;
+    multiplierRef.current = 1;
+    crashAtRef.current = randomInt(120, 800) / 100;
+    startTimeRef.current = Date.now();
+
+    setMultiplier(1);
+    setCrashAt(crashAtRef.current);
+    setPoints([{ x: 0, y: 92 }]);
+    setRocket({ x: 0, y: 92 });
+    setCrashed(false);
+    setCashedOut(false);
+    setPlaying(true);
+    setMessage("Rocket launched!");
+
+    roundRef.current = true;
+
+    intervalRef.current = setInterval(() => {
+      if (!roundRef.current) return;
+
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      const nextMultiplier = Math.exp(elapsed * 0.22);
+
+      if (nextMultiplier >= crashAtRef.current) {
+        const finalMultiplier = crashAtRef.current;
+        const crashX = Math.min(94, elapsed * 10);
+        const crashY = Math.max(8, 92 - Math.log(finalMultiplier) * 32);
+
+        roundRef.current = false;
+        clearRoundTimer();
+
+        multiplierRef.current = finalMultiplier;
+        setMultiplier(finalMultiplier);
+        setRocket({ x: crashX, y: crashY });
+        setPoints((previous) => [
+          ...previous,
+          { x: crashX, y: crashY },
+        ]);
+        setPlaying(false);
+        setCrashed(true);
+        setCashedOut(false);
+        setMessage(`Rocket crashed at ${finalMultiplier.toFixed(2)}x`);
+        return;
+      }
+
+      multiplierRef.current = nextMultiplier;
+      setMultiplier(nextMultiplier);
+
+      const x = Math.min(94, elapsed * 10);
+      const y = Math.max(8, 92 - Math.log(nextMultiplier) * 32);
+      const nextPoint = { x, y };
+
+      setRocket(nextPoint);
+      setPoints((previous) => [...previous, nextPoint]);
+    }, 50);
+  }, [bet, clearRoundTimer, updateBalance]);
+
+  const startSlots = () => {
+    if (slotSpinning || loading) return;
+
+    const stake = Math.floor(Number(bet));
+    if (!Number.isFinite(stake) || stake < MIN_BET || stake > MAX_BET) {
+      setMessage("Enter a valid bet");
+      return;
+    }
+    if (stake > balanceRef.current) {
+      setMessage("Insufficient demo balance");
+      return;
+    }
+
+    setLoading(true);
+    setSlotSpinning(true);
+    updateBalance(balanceRef.current - stake);
+    setMessage("Spinning...");
+
+    const symbols = ["🍒", "⭐", "🍋", "💎", "7️⃣", "🍀"];
+    let spins = 0;
+
+    const timer = setInterval(() => {
+      setSlotSymbols([
+        symbols[randomInt(0, symbols.length - 1)],
+        symbols[randomInt(0, symbols.length - 1)],
+        symbols[randomInt(0, symbols.length - 1)],
+      ]);
+
+      spins += 1;
+
+      if (spins >= 12) {
+        clearInterval(timer);
+
+        const final = [
+          symbols[randomInt(0, symbols.length - 1)],
+          symbols[randomInt(0, symbols.length - 1)],
+          symbols[randomInt(0, symbols.length - 1)],
+        ];
+
+        setSlotSymbols(final);
+
+        const multiplier =
+          final[0] === final[1] && final[1] === final[2]
+            ? 5
+            : final[0] === final[1] ||
+                final[1] === final[2] ||
+                final[0] === final[2]
+              ? 1.5
+              : 0;
+
+        if (multiplier > 0) {
+          const payout = stake * multiplier;
+          updateBalance(balanceRef.current + payout);
+          setMessage(`You won ${payout.toFixed(2)} demo credits!`);
+        } else {
+          setMessage("No match. Try again!");
+        }
+
+        setSlotSpinning(false);
+        setLoading(false);
+      }
+    }, 100);
+  };
+
+  const startMines = () => {
+    if (!minesOver) return;
+
+    const stake = Math.floor(Number(bet));
+    if (!Number.isFinite(stake) || stake < MIN_BET || stake > MAX_BET) {
+      setMessage("Enter a valid bet");
+      return;
+    }
+    if (stake > balanceRef.current) {
+      setMessage("Insufficient demo balance");
+      return;
+    }
+
+    const newMines: number[] = [];
+    while (newMines.length < mineCount) {
+      const position = randomInt(0, 24);
+      if (!newMines.includes(position)) newMines.push(position);
+    }
+
+    updateBalance(balanceRef.current - stake);
+    setMineTiles(newMines);
     setRevealed([]);
     setMineMultiplier(1);
-    setMinesActive(true);
-    setMessage("Find gems and avoid the mines.");
-  }
+    setMinesOver(false);
+    setMessage("Pick a tile. Avoid the mines!");
+  };
 
-  function revealTile(index: number) {
-    if (!minesActive || revealed.includes(index)) return;
+  const revealMine = (index: number) => {
+    if (minesOver || revealed.includes(index)) return;
 
-    if (mines.includes(index)) {
+    if (mineTiles.includes(index)) {
       setRevealed((previous) => [...previous, index]);
-      setMinesActive(false);
-      setMessage(`Mine hit! You lost ${money(minesBet)}.`);
+      setMinesOver(true);
+      setMessage("💥 Mine hit! Your bet was lost.");
       return;
     }
 
     const nextRevealed = [...revealed, index];
-    const nextMultiplier = Number(
-      (1 + nextRevealed.length * 0.2).toFixed(2)
-    );
-
     setRevealed(nextRevealed);
-    setMineMultiplier(nextMultiplier);
 
-    setMessage(
-      `Safe! Cash-out value: ${money(
-        minesBet * nextMultiplier
-      )}.`
-    );
+    const nextMultiplier =
+      Math.pow((25 - mineCount) / (25 - mineCount - nextRevealed.length + 1), nextRevealed.length) *
+      0.97;
 
-    if (nextRevealed.length === 25 - mineCount) {
-      const payout = Number(
-        (minesBet * nextMultiplier).toFixed(2)
-      );
-
-      setBalance((previous) => previous + payout);
-      setMinesActive(false);
-      setMessage(`All safe tiles found! Payout: ${money(payout)}.`);
-    }
-  }
-
-  function cashOutMines() {
-    if (!minesActive) return;
-
-    const payout = Number(
-      (minesBet * mineMultiplier).toFixed(2)
-    );
-
-    setBalance((previous) => previous + payout);
-    setMinesActive(false);
-    setMessage(`Cashed out: ${money(payout)}.`);
-  }
-
-  const titles: Record<GameType, string> = {
-    aviator: "ROYAL AVIATOR",
-    slots: "ROYAL SLOTS",
-    mines: "ROYAL MINES",
+    setMineMultiplier(Math.max(1.01, nextMultiplier));
+    setMessage("💎 Safe! Cash out when ready.");
   };
 
-  return (
-    <main className="rb-mini-page">
-      <div className="rb-mini-container">
-        <a className="rb-mini-back" href="/casino">
-          ← Casino
-        </a>
+  const cashOutMines = () => {
+    if (minesOver || revealed.length === 0) return;
 
-        <header className="rb-mini-header">
-          <span className="rb-mini-crown">♛</span>
-          <h1>{titles[game]}</h1>
-          <p>Virtual-credit demo</p>
+    const payout = Math.floor(bet * mineMultiplier * 100) / 100;
+    updateBalance(balanceRef.current + payout);
+    setMinesOver(true);
+    setMessage(`Cashed out for ${payout.toFixed(2)} demo credits.`);
+  };
+
+  const resetDemo = () => {
+    if (roundRef.current) return;
+    updateBalance(STARTING_BALANCE);
+    setMessage("Demo balance reset.");
+  };
+
+  const isAviator = game === "aviator";
+  const isSlots = game === "slots";
+  const gameTitle = isAviator
+    ? "ROCKET CRASH"
+    : isSlots
+      ? "ROYAL SLOTS"
+      : "ROYAL MINES";
+
+  const chartPath =
+    points.length > 1
+      ? points
+          .map(
+            (point, index) =>
+              `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+          )
+          .join(" ")
+      : "M 0 92 L 0.1 92";
+
+  const areaPath = `${chartPath} L ${rocket.x} 100 L 0 100 Z`;
+
+  return (
+    <main className="rg-page">
+      <style jsx>{`
+        .rg-page {
+          min-height: 100vh;
+          background: #080b0a;
+          color: #f5f5f5;
+          padding: 16px 12px 36px;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .rg-wrap {
+          max-width: 460px;
+          margin: 0 auto;
+        }
+        .rg-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .rg-brand {
+          color: #f3c76a;
+          font-weight: 900;
+          letter-spacing: 1.5px;
+          font-size: 18px;
+        }
+        .rg-back {
+          color: #d5d9d6;
+          text-decoration: none;
+          font-size: 13px;
+          border: 1px solid #29312d;
+          border-radius: 8px;
+          padding: 9px 12px;
+        }
+        .rg-card {
+          border: 1px solid #25312b;
+          background: #0e1411;
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .rg-heading {
+          padding: 15px 16px 12px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        }
+        .rg-heading h1 {
+          margin: 0;
+          font-size: 16px;
+          letter-spacing: 1px;
+          font-weight: 900;
+        }
+        .rg-demo {
+          color: #9ba9a0;
+          font-size: 10px;
+          border: 1px solid #344139;
+          border-radius: 6px;
+          padding: 5px 7px;
+          white-space: nowrap;
+        }
+        .rg-balance {
+          padding: 12px 16px;
+          border-top: 1px solid #202a24;
+          border-bottom: 1px solid #202a24;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        }
+        .rg-muted {
+          color: #93a198;
+          font-size: 12px;
+        }
+        .rg-amount {
+          color: #f4c66a;
+          font-size: 18px;
+          font-weight: 900;
+        }
+        .rg-reset {
+          color: #b8c3bc;
+          background: transparent;
+          border: 1px solid #334039;
+          border-radius: 7px;
+          padding: 7px 9px;
+          font-size: 11px;
+        }
+        .rg-chart {
+          margin: 12px auto;
+          width: calc(100% - 24px);
+          max-width: 400px;
+          aspect-ratio: 1.12 / 1;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid #26352d;
+          border-radius: 10px;
+          background:
+            linear-gradient(#17231d 1px, transparent 1px),
+            linear-gradient(90deg, #17231d 1px, transparent 1px),
+            radial-gradient(ellipse at 70% 100%, #13251a, #080f0c 70%);
+          background-size: 25% 25%, 25% 25%, 100% 100%;
+        }
+        .rg-multiplier {
+          position: absolute;
+          top: 14px;
+          left: 0;
+          right: 0;
+          z-index: 2;
+          text-align: center;
+          font-size: clamp(30px, 9vw, 44px);
+          font-weight: 900;
+          line-height: 1;
+          color: #65f2a0;
+          text-shadow: 0 0 22px #37f58a30;
+          font-variant-numeric: tabular-nums;
+        }
+        .rg-status {
+          position: absolute;
+          top: 61px;
+          left: 0;
+          right: 0;
+          z-index: 2;
+          text-align: center;
+          font-size: 11px;
+          letter-spacing: 1.8px;
+          color: #9caea3;
+          font-weight: 800;
+        }
+        .rg-status.crash {
+          color: #ff6464;
+        }
+        .rg-status.win {
+          color: #68f5a5;
+        }
+        .rg-svg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: visible;
+        }
+        .rg-rocket {
+          position: absolute;
+          width: 38px;
+          height: 38px;
+          display: grid;
+          place-items: center;
+          font-size: 28px;
+          transform: translate(-50%, -50%) rotate(-35deg);
+          filter: drop-shadow(0 0 8px #72f5b0a0);
+          z-index: 3;
+          pointer-events: none;
+          transition: left 50ms linear, top 50ms linear;
+        }
+        .rg-flame {
+          position: absolute;
+          font-size: 12px;
+          top: 25px;
+          left: 5px;
+          transform: rotate(35deg);
+          animation: rg-flame 0.16s infinite alternate;
+        }
+        @keyframes rg-flame {
+          from { opacity: 0.55; transform: rotate(35deg) scale(0.8); }
+          to { opacity: 1; transform: rotate(35deg) scale(1.2); }
+        }
+        .rg-crashmark {
+          position: absolute;
+          transform: translate(-50%, -50%);
+          color: #ff5d5d;
+          font-size: 30px;
+          font-weight: 900;
+          z-index: 4;
+        }
+        .rg-control {
+          padding: 4px 14px 15px;
+        }
+        .rg-label {
+          display: block;
+          margin-bottom: 7px;
+          font-size: 11px;
+          color: #9ba9a0;
+        }
+        .rg-input-row {
+          display: flex;
+          gap: 8px;
+          align-items: stretch;
+        }
+        .rg-bet-input {
+          min-width: 0;
+          width: 100%;
+          background: #080d0a;
+          border: 1px solid #344039;
+          border-radius: 9px;
+          color: #fff;
+          padding: 13px 12px;
+          font-size: 16px;
+          font-weight: 800;
+          outline: none;
+        }
+        .rg-small-btn {
+          background: #17231b;
+          border: 1px solid #34483a;
+          color: #dce7df;
+          border-radius: 8px;
+          padding: 0 12px;
+          font-weight: 800;
+        }
+        .rg-main-btn {
+          width: 100%;
+          min-height: 48px;
+          border: 0;
+          border-radius: 9px;
+          margin-top: 10px;
+          background: linear-gradient(135deg, #f5d27f, #dba641);
+          color: #17120a;
+          font-size: 13px;
+          letter-spacing: 0.7px;
+          font-weight: 900;
+        }
+        .rg-main-btn.cash {
+          background: linear-gradient(135deg, #71f2a5, #25b96d);
+          color: #052412;
+        }
+        .rg-main-btn:disabled {
+          opacity: 0.5;
+        }
+        .rg-message {
+          margin: 0;
+          padding: 12px 15px;
+          min-height: 44px;
+          background: #0a100c;
+          border-top: 1px solid #202a24;
+          text-align: center;
+          font-size: 12px;
+          color: #c4d0c8;
+        }
+        .rg-footnote {
+          margin-top: 12px;
+          text-align: center;
+          color: #77847b;
+          font-size: 10px;
+          line-height: 1.5;
+        }
+        .rg-slot-reels {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          margin: 26px 12px;
+        }
+        .rg-reel {
+          display: grid;
+          place-items: center;
+          width: 78px;
+          height: 85px;
+          border-radius: 12px;
+          border: 1px solid #39453d;
+          background: linear-gradient(#1b261f, #0a100c);
+          font-size: 38px;
+        }
+        .rg-mine-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 7px;
+          padding: 14px;
+        }
+        .rg-tile {
+          aspect-ratio: 1;
+          min-width: 0;
+          border-radius: 8px;
+          border: 1px solid #35463a;
+          background: #1a2920;
+          color: #fff;
+          font-size: clamp(17px, 5vw, 25px);
+        }
+        .rg-tile.safe {
+          background: #163e2b;
+          border-color: #2b9d62;
+        }
+        .rg-tile.mine {
+          background: #4b1c1c;
+          border-color: #b84242;
+        }
+        .rg-mine-tools {
+          padding: 0 14px 14px;
+        }
+        .rg-select {
+          width: 100%;
+          background: #080d0a;
+          color: #fff;
+          border: 1px solid #344039;
+          border-radius: 8px;
+          padding: 12px;
+          font-size: 14px;
+        }
+        @media (max-width: 360px) {
+          .rg-page { padding-left: 8px; padding-right: 8px; }
+          .rg-heading { padding-left: 12px; padding-right: 12px; }
+          .rg-chart { width: calc(100% - 16px); }
+        }
+      `}</style>
+
+      <div className="rg-wrap">
+        <header className="rg-top">
+          <div className="rg-brand">ROYALBET</div>
+          <Link className="rg-back" href="/casino">
+            ← All games
+          </Link>
         </header>
 
-        <section className="rb-mini-balance">
-          <span>YOUR BALANCE</span>
-          <strong>{money(balance)}</strong>
-        </section>
+        <section className="rg-card">
+          <div className="rg-heading">
+            <h1>{gameTitle}</h1>
+            <span className="rg-demo">DEMO CREDITS</span>
+          </div>
 
-        <section className="rb-mini-card">
-          {game === "aviator" && (
+          <div className="rg-balance">
+            <div>
+              <div className="rg-muted">Available balance</div>
+              <div className="rg-amount">{balance.toFixed(2)}</div>
+            </div>
+            <button
+              type="button"
+              className="rg-reset"
+              onClick={resetDemo}
+              disabled={playing}
+            >
+              Reset demo
+            </button>
+          </div>
+
+          {isAviator && (
             <>
-              <div
-                className={`rb-aviator-square ${
-                  crashed ? "rb-crashed" : ""
-                }`}
-              >
-                <div className="rb-aviator-sky">
-                  {!crashed && (
-                    <span
-                      className="rb-aviator-plane"
-                      style={{
-                        left: `${Math.min(
-                          12 + (multiplier - 1) * 10,
-                          78
-                        )}%`,
-                        bottom: `${Math.min(
-                          14 + (multiplier - 1) * 8,
-                          70
-                        )}%`,
-                      }}
-                    >
-                      ✈
-                    </span>
-                  )}
-
-                  {crashed && (
-                    <span className="rb-crash-icon">💥</span>
-                  )}
-
-                  <strong
-                    className={crashed ? "rb-crash-text" : ""}
-                  >
-                    {crashed
-                      ? "CRASHED"
-                      : `${multiplier.toFixed(2)}×`}
-                  </strong>
-
-                  <small>
-                    {aviatorPlaying
-                      ? "CASH OUT NOW"
-                      : crashed
-                        ? `CRASH ${crashPoint.toFixed(2)}×`
-                        : "READY"}
-                  </small>
+              <div className="rg-chart">
+                <div className="rg-multiplier">
+                  {multiplier.toFixed(2)}x
                 </div>
+                <div
+                  className={`rg-status ${crashed ? "crash" : cashedOut ? "win" : ""}`}
+                >
+                  {crashed
+                    ? "ROCKET CRASHED"
+                    : cashedOut
+                      ? "CASHED OUT"
+                      : playing
+                        ? "ROCKET IN FLIGHT"
+                        : "READY FOR LAUNCH"}
+                </div>
+
+                <svg
+                  className="rg-svg"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label="Live rocket multiplier chart"
+                >
+                  <defs>
+                    <linearGradient id="rgArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#35e989" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#35e989" stopOpacity="0" />
+                    </linearGradient>
+                    <filter id="rgGlow">
+                      <feGaussianBlur stdDeviation="1.2" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {!crashed && (
+                    <path d={areaPath} fill="url(#rgArea)" />
+                  )}
+
+                  <path
+                    d={chartPath}
+                    fill="none"
+                    stroke={crashed ? "#ff5d5d" : "#55f59c"}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                    filter="url(#rgGlow)"
+                  />
+
+                  {playing && (
+                    <circle
+                      cx={rocket.x}
+                      cy={rocket.y}
+                      r="2"
+                      fill="#b5ffd0"
+                    />
+                  )}
+
+                  {cashedOut && (
+                    <circle
+                      cx={rocket.x}
+                      cy={rocket.y}
+                      r="2.4"
+                      fill="#f4c66a"
+                    />
+                  )}
+                </svg>
+
+                {playing && (
+                  <div
+                    className="rg-rocket"
+                    style={{
+                      left: `${rocket.x}%`,
+                      top: `${rocket.y}%`,
+                    }}
+                    aria-label="Rocket in flight"
+                  >
+                    🚀
+                    <span className="rg-flame">🔥</span>
+                  </div>
+                )}
+
+                {crashed && (
+                  <div
+                    className="rg-crashmark"
+                    style={{
+                      left: `${rocket.x}%`,
+                      top: `${rocket.y}%`,
+                    }}
+                  >
+                    ✹
+                  </div>
+                )}
               </div>
 
-              <p className="rb-mini-help">
-                Cash out before the multiplier crashes.
-              </p>
+              <div className="rg-control">
+                <label className="rg-label" htmlFor="rg-aviator-bet">
+                  BET AMOUNT
+                </label>
+                <div className="rg-input-row">
+                  <input
+                    id="rg-aviator-bet"
+                    className="rg-bet-input"
+                    type="number"
+                    min={MIN_BET}
+                    max={MAX_BET}
+                    step="1"
+                    value={bet}
+                    disabled={playing}
+                    onChange={(event) => setBet(Number(event.target.value))}
+                  />
+                  <button
+                    type="button"
+                    className="rg-small-btn"
+                    disabled={playing}
+                    onClick={() =>
+                      setBet((current) =>
+                        Math.min(MAX_BET, Math.max(MIN_BET, current * 2)),
+                      )
+                    }
+                  >
+                    2×
+                  </button>
+                  <button
+                    type="button"
+                    className="rg-small-btn"
+                    disabled={playing}
+                    onClick={() => setBet(10)}
+                  >
+                    MAX
+                  </button>
+                </div>
 
-              {!aviatorPlaying ? (
-                <button
-                  className="rb-mini-primary"
-                  onClick={startAviator}
-                  disabled={!validBet}
-                >
-                  Start Flight
-                </button>
-              ) : (
-                <button
-                  className="rb-mini-primary rb-cashout"
-                  onClick={cashOutAviator}
-                >
-                  Cash Out · {multiplier.toFixed(2)}×
-                </button>
-              )}
+                {playing ? (
+                  <button
+                    type="button"
+                    className="rg-main-btn cash"
+                    onClick={cashOut}
+                  >
+                    CASH OUT · {(bet * multiplier).toFixed(2)}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="rg-main-btn"
+                    onClick={startAviator}
+                  >
+                    🚀 LAUNCH ROCKET
+                  </button>
+                )}
+
+                {crashed && (
+                  <div className="rg-muted" style={{ textAlign: "center", marginTop: 9 }}>
+                    Crash point: {crashAt.toFixed(2)}x
+                  </div>
+                )}
+              </div>
             </>
           )}
 
-          {game === "slots" && (
+          {isSlots && (
             <>
-              <div className="rb-slots-square">
-                {reels.map((symbol, index) => (
-                  <div className="rb-reel" key={index}>
-                    {spinning ? "❔" : symbol}
+              <div className="rg-slot-reels">
+                {slotSymbols.map((symbol, index) => (
+                  <div className="rg-reel" key={`${index}-${symbol}`}>
+                    {symbol}
                   </div>
                 ))}
               </div>
-
-              <p className="rb-mini-help">
-                Match symbols to win virtual credits.
-              </p>
-
-              <button
-                className="rb-mini-primary"
-                onClick={playSlots}
-                disabled={!validBet || spinning}
-              >
-                {spinning ? "Spinning..." : "Spin"}
-              </button>
+              <div className="rg-control">
+                <label className="rg-label" htmlFor="rg-slots-bet">
+                  BET AMOUNT
+                </label>
+                <div className="rg-input-row">
+                  <input
+                    id="rg-slots-bet"
+                    className="rg-bet-input"
+                    type="number"
+                    min={MIN_BET}
+                    max={MAX_BET}
+                    value={bet}
+                    disabled={slotSpinning}
+                    onChange={(event) => setBet(Number(event.target.value))}
+                  />
+                  <button
+                    className="rg-small-btn"
+                    disabled={slotSpinning}
+                    onClick={() => setBet(10)}
+                    type="button"
+                  >
+                    RESET
+                  </button>
+                </div>
+                <button
+                  className="rg-main-btn"
+                  onClick={startSlots}
+                  disabled={slotSpinning}
+                  type="button"
+                >
+                  {slotSpinning ? "SPINNING..." : "SPIN REELS"}
+                </button>
+              </div>
             </>
           )}
 
-          {game === "mines" && (
+          {!isAviator && !isSlots && (
             <>
-              <label className="rb-mini-label">
-                Mines
-                <select
-                  value={mineCount}
-                  disabled={minesActive}
-                  onChange={(event) =>
-                    setMineCount(Number(event.target.value))
-                  }
-                >
-                  <option value={1}>1 mine</option>
-                  <option value={3}>3 mines</option>
-                  <option value={5}>5 mines</option>
-                  <option value={10}>10 mines</option>
-                </select>
-              </label>
-
-              <div className="rb-mines-square">
+              <div className="rg-mine-grid">
                 {Array.from({ length: 25 }, (_, index) => {
-                  const shown = revealed.includes(index);
-                  const isMine = mines.includes(index);
+                  const isRevealed = revealed.includes(index);
+                  const isMine = mineTiles.includes(index);
+                  const showMine = minesOver && isMine;
+                  const showSafe = isRevealed && !isMine;
 
                   return (
                     <button
                       type="button"
                       key={index}
-                      className={`rb-mine-tile ${
-                        shown
-                          ? isMine
-                            ? "rb-mine-hit"
-                            : "rb-mine-safe"
-                          : ""
-                      }`}
-                      disabled={!minesActive || shown}
-                      onClick={() => revealTile(index)}
+                      className={`rg-tile ${showMine ? "mine" : ""} ${showSafe ? "safe" : ""}`}
+                      disabled={minesOver || isRevealed}
+                      onClick={() => revealMine(index)}
                     >
-                      {shown ? (isMine ? "💣" : "💎") : "·"}
+                      {showMine ? "💣" : showSafe ? "💎" : ""}
                     </button>
                   );
                 })}
               </div>
 
-              <p className="rb-mini-help">
-                Find gems, avoid mines, and cash out.
-              </p>
+              <div className="rg-mine-tools">
+                <label className="rg-label" htmlFor="rg-mine-count">
+                  NUMBER OF MINES
+                </label>
+                <select
+                  id="rg-mine-count"
+                  className="rg-select"
+                  value={mineCount}
+                  disabled={!minesOver}
+                  onChange={(event) => setMineCount(Number(event.target.value))}
+                >
+                  {[3, 5, 7, 10].map((count) => (
+                    <option key={count} value={count}>
+                      {count} mines
+                    </option>
+                  ))}
+                </select>
 
-              {!minesActive ? (
-                <button
-                  className="rb-mini-primary"
-                  onClick={startMines}
-                  disabled={!validBet}
-                >
-                  Start Round
-                </button>
-              ) : (
-                <button
-                  className="rb-mini-primary rb-cashout"
-                  onClick={cashOutMines}
-                >
-                  Cash Out · {mineMultiplier.toFixed(2)}×
-                </button>
-              )}
+                <label className="rg-label" htmlFor="rg-mines-bet" style={{ marginTop: 12 }}>
+                  BET AMOUNT
+                </label>
+                <input
+                  id="rg-mines-bet"
+                  className="rg-bet-input"
+                  type="number"
+                  min={MIN_BET}
+                  max={MAX_BET}
+                  value={bet}
+                  disabled={!minesOver}
+                  onChange={(event) => setBet(Number(event.target.value))}
+                />
+
+                {minesOver ? (
+                  <button
+                    type="button"
+                    className="rg-main-btn"
+                    onClick={startMines}
+                  >
+                    START MINES
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="rg-main-btn cash"
+                    disabled={revealed.length === 0}
+                    onClick={cashOutMines}
+                  >
+                    CASH OUT · {(bet * mineMultiplier).toFixed(2)}
+                  </button>
+                )}
+              </div>
             </>
           )}
 
-          <div className="rb-mini-bet">
-            <label className="rb-mini-label">
-              Bet amount
-              <input
-                type="number"
-                min="1"
-                max={balance}
-                step="1"
-                value={bet}
-                disabled={
-                  (game === "aviator" && aviatorPlaying) ||
-                  (game === "slots" && spinning) ||
-                  (game === "mines" && minesActive)
-                }
-                onChange={(event) =>
-                  setBet(Number(event.target.value))
-                }
-              />
-            </label>
-
-            <div className="rb-mini-presets">
-              {[10, 25, 50, 100].map((amount) => (
-                <button
-                  type="button"
-                  key={amount}
-                  disabled={
-                    amount > balance ||
-                    (game === "aviator" && aviatorPlaying) ||
-                    (game === "slots" && spinning) ||
-                    (game === "mines" && minesActive)
-                  }
-                  onClick={() => setBet(amount)}
-                >
-                  {amount}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {!validBet && (
-            <p className="rb-mini-error">
-              Enter a valid bet within your available balance.
-            </p>
-          )}
-
-          <p className="rb-mini-message" aria-live="polite">
+          <p className="rg-message" aria-live="polite">
             {message}
           </p>
         </section>
 
-        <p className="rb-mini-notice">
-          Demo only. Credits have no cash value.
+        <p className="rg-footnote">
+          Demo game only. Credits have no cash value. Results and balances are
+          stored locally in this browser and are not secure for real-money play.
         </p>
       </div>
-
-      <style jsx>{`
-        .rb-mini-page {
-          min-height: 100vh;
-          padding: 18px 12px 35px;
-          background: #090b09;
-          color: #f8f4e8;
-        }
-
-        .rb-mini-container {
-          width: 100%;
-          max-width: 390px;
-          margin: 0 auto;
-        }
-
-        .rb-mini-back {
-          color: #dfc477;
-          text-decoration: none;
-          font-size: 13px;
-        }
-
-        .rb-mini-header {
-          text-align: center;
-          padding: 17px 0;
-        }
-
-        .rb-mini-crown {
-          color: #e5c66e;
-          font-size: 27px;
-        }
-
-        .rb-mini-header h1 {
-          margin: 5px 0;
-          font-size: 22px;
-          font-weight: 900;
-          letter-spacing: 1px;
-        }
-
-        .rb-mini-header p {
-          margin: 4px 0;
-          color: #9ca49b;
-          font-size: 12px;
-        }
-
-        .rb-mini-balance {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 8px;
-          padding: 13px;
-          margin-bottom: 12px;
-          border: 1px solid #343a30;
-          border-radius: 11px;
-          background: #121612;
-        }
-
-        .rb-mini-balance span {
-          color: #9ca49b;
-          font-size: 10px;
-        }
-
-        .rb-mini-balance strong {
-          color: #e5c66e;
-          font-size: 14px;
-        }
-
-        .rb-mini-card {
-          padding: 13px;
-          border: 1px solid #343a30;
-          border-radius: 13px;
-          background: #111411;
-        }
-
-        /* All game boards stay compact and square. */
-        .rb-aviator-square,
-        .rb-slots-square,
-        .rb-mines-square {
-          width: 100%;
-          max-width: 290px;
-          aspect-ratio: 1 / 1;
-          margin: 0 auto 12px;
-          border-radius: 10px;
-          overflow: hidden;
-        }
-
-        .rb-aviator-square {
-          background: #10241b;
-          border: 1px solid #31513e;
-        }
-
-        .rb-aviator-sky {
-          width: 100%;
-          height: 100%;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          background:
-            radial-gradient(circle at 50% 65%, #244b35, #102018 75%);
-          overflow: hidden;
-        }
-
-        .rb-aviator-sky::after {
-          content: "";
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 18%;
-          background: #172c20;
-          border-top: 1px solid #35513b;
-        }
-
-        .rb-aviator-sky strong {
-          z-index: 1;
-          font-size: clamp(36px, 11vw, 54px);
-          color: #e9cd7b;
-        }
-
-        .rb-aviator-sky small {
-          z-index: 1;
-          color: #b7c8b8;
-          font-size: 10px;
-          letter-spacing: 2px;
-        }
-
-        .rb-aviator-plane {
-          position: absolute;
-          z-index: 2;
-          font-size: 27px;
-          transition: left 100ms linear, bottom 100ms linear;
-          transform: rotate(-12deg);
-        }
-
-        .rb-crashed .rb-aviator-sky {
-          background: radial-gradient(circle, #542b26, #1c1010 80%);
-        }
-
-        .rb-crashed .rb-aviator-sky strong {
-          color: #ff9c85;
-          font-size: 29px;
-        }
-
-        .rb-crash-icon {
-          z-index: 2;
-          font-size: 32px;
-        }
-
-        .rb-crash-text {
-          color: #ff9c85 !important;
-        }
-
-        .rb-slots-square {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          align-items: center;
-          gap: 7px;
-          padding: 12px;
-          border: 1px solid #5d4a27;
-          background: radial-gradient(circle, #302619, #17140f);
-        }
-
-        .rb-reel {
-          min-width: 0;
-          aspect-ratio: 1 / 1;
-          display: grid;
-          place-items: center;
-          border-radius: 9px;
-          border: 1px solid #6c5a32;
-          background: #171714;
-          font-size: clamp(28px, 9vw, 43px);
-        }
-
-        .rb-mines-square {
-          display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 5px;
-        }
-
-        .rb-mine-tile {
-          min-width: 0;
-          padding: 0;
-          border: 1px solid #3c4b3e;
-          border-radius: 6px;
-          background: #202b22;
-          color: #e7c76f;
-          font-size: 22px;
-          font-weight: 800;
-        }
-
-        .rb-mine-tile:disabled {
-          opacity: 1;
-        }
-
-        .rb-mine-safe {
-          background: #245133;
-        }
-
-        .rb-mine-hit {
-          background: #682d2d;
-        }
-
-        .rb-mini-help {
-          color: #a6ada4;
-          font-size: 12px;
-          line-height: 1.5;
-          text-align: center;
-          margin: 9px 0;
-        }
-
-        .rb-mini-primary {
-          width: 100%;
-          min-height: 44px;
-          border: 0;
-          border-radius: 8px;
-          background: linear-gradient(135deg, #f0d991, #c4a04b);
-          color: #17140c;
-          font-weight: 900;
-          font-size: 14px;
-          cursor: pointer;
-        }
-
-        .rb-mini-primary:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
-        .rb-cashout {
-          background: linear-gradient(135deg, #9ce7ac, #46a96a);
-        }
-
-        .rb-mini-bet {
-          display: grid;
-          gap: 9px;
-          margin-top: 15px;
-        }
-
-        .rb-mini-label {
-          display: grid;
-          gap: 6px;
-          color: #c6cbc2;
-          font-size: 12px;
-        }
-
-        .rb-mini-label input,
-        .rb-mini-label select {
-          width: 100%;
-          min-height: 41px;
-          padding: 8px 10px;
-          border: 1px solid #394139;
-          border-radius: 7px;
-          background: #090d0a;
-          color: #fff;
-          font-size: 16px;
-        }
-
-        .rb-mini-presets {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 6px;
-        }
-
-        .rb-mini-presets button {
-          min-height: 35px;
-          border: 1px solid #41483d;
-          border-radius: 6px;
-          background: #1a201b;
-          color: #e5c56e;
-        }
-
-        .rb-mini-presets button:disabled {
-          opacity: 0.4;
-        }
-
-        .rb-mini-message {
-          margin: 12px 0 0;
-          padding: 10px;
-          border-radius: 7px;
-          background: #1b211b;
-          color: #e6cf8c;
-          font-size: 12px;
-          line-height: 1.5;
-          overflow-wrap: anywhere;
-        }
-
-        .rb-mini-error {
-          color: #ff9b9b;
-          font-size: 12px;
-        }
-
-        .rb-mini-notice {
-          color: #858d83;
-          font-size: 10px;
-          line-height: 1.5;
-          text-align: center;
-        }
-      `}</style>
     </main>
   );
 }
