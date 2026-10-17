@@ -1,16 +1,29 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Crown,
   Sparkles,
   ShieldCheck,
+  UserRound,
 } from "lucide-react";
+
+type CurrentUser = {
+  id: string;
+  name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  role?: string;
+  balance?: number;
+};
 
 const games = [
   {
     name: "Aviator",
     category: "CRASH GAME",
-    icon: "✈",
+    icon: "🚀",
     style: "aviator",
     href: "/casino/aviator",
   },
@@ -45,6 +58,46 @@ const games = [
 ];
 
 export default function HomePage() {
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (active) setUser(null);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (active) {
+          setUser(data.user ?? null);
+        }
+      } catch {
+        if (active) setUser(null);
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isLoggedIn = Boolean(user);
+
   return (
     <main className="royal-home">
       <div className="royal-home-content">
@@ -68,9 +121,15 @@ export default function HomePage() {
               PLAY <i>•</i> WIN <i>•</i> REPEAT
             </p>
 
-            <Link href="/register" className="royal-gold-button">
-              Start Playing <ArrowRight size={16} />
-            </Link>
+            {authLoading ? (
+              <span className="royal-gold-button">
+                Loading account...
+              </span>
+            ) : (
+              <Link href="/casino" className="royal-gold-button">
+                Start Playing <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
 
           <div className="royal-hero-art" aria-hidden="true">
@@ -113,12 +172,14 @@ export default function HomePage() {
             <p>Get more from your eligible deposit.</p>
           </div>
 
-          <Link
-            href="/register"
+          <a
+            href="https://t.me/RoyalBetPayments"
+            target="_blank"
+            rel="noopener noreferrer"
             className="royal-promo-button"
           >
             Claim Offer <ArrowRight size={15} />
-          </Link>
+          </a>
         </section>
 
         <section className="royal-games-section">
@@ -133,10 +194,7 @@ export default function HomePage() {
               </h2>
             </div>
 
-            <Link
-              href="/casino"
-              className="royal-view-all"
-            >
+            <Link href="/casino" className="royal-view-all">
               View All <ArrowRight size={15} />
             </Link>
           </div>
@@ -187,21 +245,56 @@ export default function HomePage() {
 
           <div>
             <strong>
-              Your Royal experience starts here.
+              {authLoading
+                ? "Welcome to RoyalBet."
+                : isLoggedIn
+                  ? `Welcome back, ${user?.username || user?.name || "Player"}.`
+                  : "Your Royal experience starts here."}
             </strong>
 
             <p>
-              Create an account to access your player dashboard.
+              {authLoading
+                ? "Checking your account..."
+                : isLoggedIn
+                  ? "Your account is ready. Choose a game and get started."
+                  : "Create an account to access your player dashboard."}
             </p>
           </div>
 
-          <Link
-            href="/register"
-            className="royal-bottom-link"
-          >
-            Create Account
-          </Link>
+          {!authLoading &&
+            (isLoggedIn ? (
+              <div className="royal-home-account-actions">
+                <Link
+                  href="/account"
+                  className="royal-bottom-link"
+                >
+                  <UserRound size={15} />
+                  My Account
+                </Link>
+
+                <Link
+                  href="/casino"
+                  className="royal-bottom-link"
+                >
+                  Play Now
+                </Link>
+              </div>
+            ) : (
+              <Link
+                href="/register"
+                className="royal-bottom-link"
+              >
+                Create Account
+              </Link>
+            ))}
         </section>
+
+        {!authLoading && !isLoggedIn && (
+          <div className="royal-home-login">
+            Already have an account?{" "}
+            <Link href="/login">Log in</Link>
+          </div>
+        )}
       </div>
     </main>
   );
