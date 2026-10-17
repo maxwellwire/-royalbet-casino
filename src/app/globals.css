@@ -2730,3 +2730,267 @@ main {
     gap: 10px;
   }
 }
+.game-section {
+  width: min(100% - 32px, 1120px);
+  margin: 32px auto;
+}
+
+.game-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.game-eyebrow {
+  color: #d6b56d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.game-section-heading h2 {
+  margin: 7px 0;
+  color: #f6f4ed;
+  font-size: clamp(24px, 4vw, 32px);
+}
+
+.game-section-heading p {
+  margin: 0;
+  color: #9b9f95;
+  font-size: 13px;
+}
+
+.game-count {
+  flex-shrink: 0;
+  color: #d6b56d;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.game-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.royal-game-card {
+  display: flex;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 14px;
+  color: #f6f4ed;
+  text-decoration: none;
+  background:
+    radial-gradient(
+      circle at 50% 46%,
+      color-mix(in srgb, var(--game-accent) 15%, transparent),
+      transparent 65%
+    ),
+    #10130f;
+  border: 1px solid #30352b;
+  border-radius: 15px;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.royal-game-card:hover {
+  border-color: var(--game-accent);
+  transform: translateY(-3px);
+}
+
+.game-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #b3b8aa;
+}
+
+.game-card-top > svg {
+  margin-left: auto;
+}
+
+.game-card-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+.game-live-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #77c58a;
+}
+
+.game-art {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  place-items: center;
+}
+
+.game-symbol {
+  display: grid;
+  width: clamp(58px, 10vw, 104px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid
+    color-mix(in srgb, var(--game-accent) 40%, transparent);
+  border-radius: 22px;
+  background: color-mix(
+    in srgb,
+    var(--game-accent) 10%,
+    #10130f
+  );
+  font-size: clamp(32px, 6vw, 58px);
+}
+
+.game-card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.game-card-bottom > div {
+  min-width: 0;
+}
+
+.game-card-bottom h3 {
+  margin: 0 0 5px;
+  font-size: clamp(14px, 2vw, 19px);
+}
+
+.game-card-bottom p {
+  margin: 0;
+  color: #9b9f95;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.game-play-button {
+  flex-shrink: 0;
+  padding: 8px 11px;
+  border-radius: 7px;
+  color: #17160f;
+  background: #d6b56d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.royal-bonus-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 17px;
+  color: #f6f4ed;
+  text-decoration: none;
+  background: linear-gradient(110deg, #201c10, #11150f);
+  border: 1px solid #78643b;
+  border-radius: 13px;
+}
+
+.bonus-icon {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  color: #17160f;
+  background: #d6b56d;
+  font-size: 25px;
+}
+
+.bonus-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bonus-copy strong {
+  color: #e6c878;
+  font-size: 13px;
+}
+
+.bonus-copy small {
+  color: #b0b3a8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.bonus-claim {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #e6c878;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 600px) {
+  .game-section {
+    width: calc(100% - 24px);
+    margin: 24px auto;
+  }
+
+  .game-card-grid {
+    gap: 9px;
+  }
+
+  .royal-game-card {
+    padding: 10px;
+    border-radius: 11px;
+  }
+
+  .game-card-label {
+    font-size: 8px;
+    letter-spacing: 0.7px;
+  }
+
+  .game-card-top {
+    gap: 5px;
+  }
+
+  .game-card-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .game-card-bottom p {
+    font-size: 10px;
+  }
+
+  .game-play-button {
+    padding: 6px 10px;
+  }
+
+  .royal-bonus-banner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .bonus-copy {
+    flex: 1;
+  }
+
+  .bonus-claim {
+    width: 100%;
+    margin-left: 53px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .royal-game-card {
+    transition: none;
+  }
+}
