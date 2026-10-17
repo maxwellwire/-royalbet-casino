@@ -2590,3 +2590,143 @@ main {
     transform: none;
   }
 }
+.profile-menu {
+  position: relative;
+}
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--gold-light);
+  cursor: pointer;
+  list-style: none;
+}
+
+.profile-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.profile-trigger:hover {
+  border-color: var(--gold);
+  background: var(--surface-light);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 1000;
+  width: min(300px, calc(100vw - 24px));
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+}
+
+.profile-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--surface-light);
+  color: var(--gold);
+}
+
+.profile-heading strong,
+.profile-heading div > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.profile-heading strong {
+  font-size: 14px;
+}
+
+.profile-heading div > span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-details {
+  padding: 16px 0;
+}
+
+.profile-details > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.profile-details p {
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.profile-details p:last-child {
+  margin-bottom: 0;
+}
+
+.profile-account-link,
+.profile-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.profile-account-link {
+  background: var(--surface-light);
+  color: var(--text);
+}
+
+.profile-logout {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.profile-account-link:hover,
+.profile-logout:hover {
+  border-color: var(--gold);
+}
+
+@media (max-width: 560px) {
+  .profile-dropdown {
+    right: -4px;
+  }
+
+  .main-nav {
+    gap: 10px;
+  }
+}
