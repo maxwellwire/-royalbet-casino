@@ -3,28 +3,44 @@
 import { useState } from "react";
 import Link from "next/link";
 
+type GameResult = "win" | "lose";
+
+type HistoryItem = {
+  number: number;
+  bet: number;
+  result: GameResult;
+  payout: number;
+};
+
+const MIN_BET = 5;
+const MAX_BET = 100;
+const MULTIPLIER = 5.4;
+
 export default function DiceGamePage() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [betAmount, setBetAmount] = useState(5);
   const [diceNumber, setDiceNumber] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
-  const [message, setMessage] = useState("Pick a number from 1 to 6");
-  const [lastBet, setLastBet] = useState<number | null>(null);
-  const [lastResult, setLastResult] = useState<"win" | "lose" | null>(null);
+  const [message, setMessage] = useState(
+    "Pick a number from 1 to 6",
+  );
+  const [lastResult, setLastResult] = useState<GameResult | null>(null);
   const [demoBalance, setDemoBalance] = useState(100);
-  const [history, setHistory] = useState<
-    { number: number; bet: number; result: "win" | "lose"; payout: number }[]
-  >([]);
-
-  const multiplier = 5.4;
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   function rollDice() {
+    if (rolling) return;
+
     if (selectedNumber === null) {
       setMessage("Please select a number first.");
       return;
     }
 
-    if (betAmount < 5 || betAmount > 100) {
+    if (
+      !Number.isFinite(betAmount) ||
+      betAmount < MIN_BET ||
+      betAmount > MAX_BET
+    ) {
       setMessage("Your bet must be between 5 and 100 USDT.");
       return;
     }
@@ -34,29 +50,29 @@ export default function DiceGamePage() {
       return;
     }
 
-    if (rolling) return;
-
     setRolling(true);
     setMessage("Rolling the dice...");
     setLastResult(null);
+
+    // This is a demo game using virtual credits only.
     setDemoBalance((balance) => balance - betAmount);
 
     let ticks = 0;
 
-    const animation = setInterval(() => {
+    const animation = window.setInterval(() => {
       setDiceNumber(Math.floor(Math.random() * 6) + 1);
       ticks++;
 
       if (ticks >= 12) {
-        clearInterval(animation);
+        window.clearInterval(animation);
 
         const result = Math.floor(Math.random() * 6) + 1;
         const won = result === selectedNumber;
-        const payout = won ? betAmount * multiplier : 0;
+        const gameResult: GameResult = won ? "win" : "lose";
+        const payout = won ? betAmount * MULTIPLIER : 0;
 
         setDiceNumber(result);
-        setLastBet(betAmount);
-        setLastResult(won ? "win" : "lose");
+        setLastResult(gameResult);
         setDemoBalance((balance) => balance + payout);
 
         setMessage(
@@ -65,15 +81,18 @@ export default function DiceGamePage() {
             : `You lost. The dice landed on ${result}.`,
         );
 
-        setHistory((previous) => [
-          {
-            number: result,
-            bet: betAmount,
-            result: won ? "win" : "lose",
-            payout,
-          },
-          ...previous,
-        ].slice(0, 10));
+        // FIXED: gameResult is explicitly typed as "win" | "lose".
+        setHistory((previous) =>
+          [
+            {
+              number: result,
+              bet: betAmount,
+              result: gameResult,
+              payout,
+            },
+            ...previous,
+          ].slice(0, 10),
+        );
 
         setRolling(false);
       }
@@ -138,12 +157,18 @@ export default function DiceGamePage() {
             DEMO BALANCE
           </span>
 
-          <h2 style={{ color: "var(--gold)", fontSize: 30, margin: "10px 0" }}>
+          <h2
+            style={{
+              color: "var(--gold)",
+              fontSize: 30,
+              margin: "10px 0",
+            }}
+          >
             {demoBalance.toFixed(2)} USDT
           </h2>
 
           <small style={{ color: "var(--muted)" }}>
-            Demo credits only — no real money is used.
+            Virtual credits only — no real money is used.
           </small>
         </div>
 
@@ -162,6 +187,7 @@ export default function DiceGamePage() {
               borderRadius: 22,
               boxShadow: "0 0 30px rgba(215,180,106,0.12)",
             }}
+            aria-live="polite"
           >
             {diceNumber ?? "🎲"}
           </div>
@@ -177,6 +203,7 @@ export default function DiceGamePage() {
               fontWeight: 700,
               minHeight: 24,
             }}
+            role="status"
           >
             {message}
           </p>
@@ -197,8 +224,10 @@ export default function DiceGamePage() {
             {[1, 2, 3, 4, 5, 6].map((number) => (
               <button
                 key={number}
+                type="button"
                 onClick={() => setSelectedNumber(number)}
                 disabled={rolling}
+                aria-pressed={selectedNumber === number}
                 style={{
                   minHeight: 52,
                   borderRadius: 9,
@@ -227,6 +256,7 @@ export default function DiceGamePage() {
             style={{
               display: "flex",
               justifyContent: "space-between",
+              alignItems: "center",
               gap: 12,
               marginBottom: 12,
             }}
@@ -239,13 +269,16 @@ export default function DiceGamePage() {
 
           <input
             type="range"
-            min={5}
-            max={100}
+            min={MIN_BET}
+            max={MAX_BET}
             step={5}
             value={betAmount}
             disabled={rolling}
-            onChange={(event) => setBetAmount(Number(event.target.value))}
+            onChange={(event) =>
+              setBetAmount(Number(event.target.value))
+            }
             style={{ width: "100%", accentColor: "var(--gold)" }}
+            aria-label="Bet amount in USDT"
           />
 
           <div
@@ -264,7 +297,7 @@ export default function DiceGamePage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
               gap: 8,
               marginTop: 15,
             }}
@@ -272,6 +305,7 @@ export default function DiceGamePage() {
             {[5, 10, 25, 50, 100].map((amount) => (
               <button
                 key={amount}
+                type="button"
                 onClick={() => setBetAmount(amount)}
                 disabled={rolling}
                 className="button button-outline"
@@ -303,28 +337,41 @@ export default function DiceGamePage() {
           }}
         >
           <div>
-            <small style={{ color: "var(--muted)" }}>Potential payout</small>
+            <small style={{ color: "var(--muted)" }}>
+              Potential payout
+            </small>
             <h3 style={{ color: "var(--success)", margin: "8px 0 0" }}>
-              {(betAmount * multiplier).toFixed(2)} USDT
+              {(betAmount * MULTIPLIER).toFixed(2)} USDT
             </h3>
           </div>
 
           <div style={{ textAlign: "right" }}>
-            <small style={{ color: "var(--muted)" }}>Win multiplier</small>
-            <h3 style={{ margin: "8px 0 0" }}>5.4×</h3>
+            <small style={{ color: "var(--muted)" }}>
+              Win multiplier
+            </small>
+            <h3 style={{ margin: "8px 0 0" }}>
+              {MULTIPLIER}×
+            </h3>
           </div>
         </div>
 
         <button
+          type="button"
           onClick={rollDice}
-          disabled={rolling || selectedNumber === null || betAmount > demoBalance}
+          disabled={
+            rolling ||
+            selectedNumber === null ||
+            betAmount > demoBalance
+          }
           className="button button-gold"
           style={{
             width: "100%",
             minHeight: 54,
             fontSize: 15,
             opacity:
-              rolling || selectedNumber === null || betAmount > demoBalance
+              rolling ||
+              selectedNumber === null ||
+              betAmount > demoBalance
                 ? 0.6
                 : 1,
           }}
@@ -341,9 +388,9 @@ export default function DiceGamePage() {
             marginTop: 18,
           }}
         >
-          Demo game only. The balance is simulated and has no cash value.
-          Real-money betting requires secure server-side game logic, verified
-          balances, and applicable licensing.
+          Demo game only. The balance is simulated and has no cash
+          value. Real-money betting requires secure server-side game
+          logic, verified balances, and applicable licensing.
         </p>
 
         {history.length > 0 && (
@@ -368,7 +415,9 @@ export default function DiceGamePage() {
                       <td>{item.bet} USDT</td>
                       <td
                         className={
-                          item.result === "win" ? "positive" : "negative"
+                          item.result === "win"
+                            ? "positive"
+                            : "negative"
                         }
                       >
                         {item.result === "win" ? "WIN" : "LOSS"}
