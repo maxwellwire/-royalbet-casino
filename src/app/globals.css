@@ -2027,3 +2027,566 @@ main {
     transform: none;
   }
 }
+/* ==========================================
+   ROYALBET — CLEAN HOMEPAGE OVERRIDES
+   Four square game cards, mobile-first
+========================================== */
+
+/* Hide the old homepage sections */
+.royal-home-compact .royal-hero,
+.royal-home-compact .royal-promo,
+.royal-home-compact .royal-bottom-cta,
+.royal-home-compact .royal-home-footer,
+.royal-home-compact .royal-view-all {
+  display: none !important;
+}
+
+/* Main homepage */
+.royal-home-compact {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(23, 75, 54, 0.13),
+      transparent 48%
+    ),
+    var(--background);
+}
+
+/* Compact header */
+.royal-home-compact .royal-header {
+  min-height: 76px;
+  padding: 12px max(4%, calc((100% - 1100px) / 2));
+  border-bottom: 1px solid var(--border);
+  background: rgba(8, 10, 9, 0.98);
+}
+
+.royal-home-compact .royal-brand-name {
+  font-family: "DM Sans", sans-serif;
+  font-size: 21px;
+  letter-spacing: 1.5px;
+}
+
+.royal-home-compact .royal-brand-crown {
+  width: 43px;
+  height: 43px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(215, 180, 106, 0.06);
+}
+
+.royal-home-compact .royal-login,
+.royal-home-compact .royal-register {
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+/* Game section */
+.royal-home-compact .royal-home-content {
+  width: min(100% - 32px, 1050px);
+  margin-inline: auto;
+}
+
+.royal-home-compact .royal-games-section {
+  margin: 38px 0 30px;
+}
+
+.royal-home-compact .royal-section-heading {
+  margin-bottom: 22px;
+}
+
+.royal-home-compact .royal-section-heading h1 {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-family: "Playfair Display", serif;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.royal-home-compact .royal-section-heading h1 span {
+  color: var(--gold);
+}
+
+.royal-home-compact .royal-games-subtitle {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Exactly two columns on mobile and four on desktop */
+.royal-home-compact .royal-games-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Square game cards */
+.royal-home-compact .royal-game-card {
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid rgba(215, 180, 106, 0.25);
+  border-radius: 12px;
+  background: #10130f;
+  transition:
+    border-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.royal-home-compact .royal-game-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.24);
+}
+
+/* Make the artwork take most of the card */
+.royal-home-compact .royal-game-art {
+  min-height: 0;
+  height: 65%;
+  aspect-ratio: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+.royal-home-compact .royal-game-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(215, 180, 106, 0.12),
+    transparent 68%
+  );
+}
+
+.royal-home-compact .royal-game-orbit {
+  width: 70%;
+  height: auto;
+  aspect-ratio: 1;
+  border-color: rgba(215, 180, 106, 0.23);
+}
+
+.royal-home-compact .royal-game-category {
+  bottom: 7px;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+/* Card information and button */
+.royal-home-compact .royal-game-info {
+  height: 35%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.royal-home-compact .royal-game-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.royal-home-compact .royal-game-info h2,
+.royal-home-compact .royal-game-info h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(12px, 1.3vw, 15px);
+  font-weight: 700;
+}
+
+.royal-home-compact .royal-game-status {
+  color: var(--success);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+.royal-home-compact .royal-play-button {
+  width: 100%;
+  min-height: 32px;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 6px;
+  color: #17140c;
+  background: linear-gradient(135deg, #f0d99b, #d7b46a);
+  font-size: 11px;
+  font-weight: 700;
+  transition: filter 180ms ease;
+}
+
+.royal-home-compact .royal-play-button:hover {
+  filter: brightness(1.08);
+}
+
+/* Individual game artwork backgrounds */
+.royal-home-compact .royal-game-aviator .royal-game-art {
+  background: linear-gradient(145deg, #32121d, #0b0d0c);
+}
+
+.royal-home-compact .royal-game-slots .royal-game-art {
+  background: linear-gradient(145deg, #49300e, #100e09);
+}
+
+.royal-home-compact .royal-game-mines .royal-game-art {
+  background: linear-gradient(145deg, #123e2b, #090e0b);
+}
+
+.royal-home-compact .royal-game-roulette .royal-game-art {
+  background: linear-gradient(145deg, #382a12, #0d100c);
+}
+
+/* Roulette wheel illustration */
+.royal-home-compact .royal-art-roulette {
+  position: relative;
+  z-index: 1;
+  width: 65%;
+  aspect-ratio: 1;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 5px ridge #c9a653;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    #a52028 0deg 15deg,
+    #121512 15deg 30deg,
+    #d7b46a 30deg 31deg
+  );
+  box-shadow: 0 0 20px rgba(215, 180, 106, 0.15);
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span {
+  position: absolute;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span:nth-child(1) {
+  top: 8%;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span:nth-child(2) {
+  right: 10%;
+  top: 28%;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span:nth-child(3) {
+  right: 17%;
+  bottom: 15%;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span:nth-child(4) {
+  left: 17%;
+  bottom: 15%;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-wheel > span:nth-child(5) {
+  left: 10%;
+  top: 28%;
+}
+
+.royal-home-compact .royal-art-roulette .roulette-hub {
+  width: 30%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 3px ridge #d7b46a;
+  border-radius: 50%;
+  color: var(--gold-light);
+  background: #10130f;
+  font-size: 18px;
+}
+
+/* Slot machine illustration */
+.royal-home-compact .royal-art-slots {
+  position: relative;
+  z-index: 1;
+  width: 76%;
+  height: 57%;
+  padding: 7px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  border: 3px solid #d7b46a;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #7b4d15, #211506);
+  box-shadow: 0 0 20px rgba(215, 180, 106, 0.12);
+}
+
+.royal-home-compact .slot-reel {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: #f0d99b;
+  background: linear-gradient(#fff5d8, #d8c89d);
+  font-size: clamp(19px, 2.5vw, 30px);
+  font-weight: 700;
+}
+
+/* Mines grid illustration */
+.royal-home-compact .royal-art-mines {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.royal-home-compact .royal-art-mines > span {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(215, 180, 106, 0.3);
+  border-radius: 5px;
+  color: var(--gold-light);
+  background: linear-gradient(145deg, #1b4d35, #0d2017);
+  font-size: clamp(13px, 2vw, 20px);
+}
+
+/* Aviator illustration */
+.royal-home-compact .royal-art-aviator {
+  position: relative;
+  z-index: 1;
+  width: 80%;
+  height: 75%;
+  display: grid;
+  place-items: center;
+}
+
+.royal-home-compact .aviator-plane {
+  position: relative;
+  z-index: 2;
+  color: #ff6077;
+  font-size: clamp(32px, 4vw, 48px);
+  transform: rotate(-12deg);
+  filter: drop-shadow(0 0 12px rgba(255, 80, 109, 0.3));
+}
+
+.royal-home-compact .aviator-trail {
+  position: absolute;
+  width: 75%;
+  height: 3px;
+  left: 0;
+  top: 57%;
+  transform: rotate(-24deg);
+  transform-origin: left center;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #ff6077);
+}
+
+.royal-home-compact .aviator-multiplier {
+  position: absolute;
+  right: 0;
+  top: 8%;
+  color: #ff8293;
+  font-size: clamp(13px, 1.8vw, 19px);
+  font-weight: 700;
+}
+
+/* Bottom brand */
+.royal-home-compact .royal-home-bottom {
+  width: min(100% - 32px, 1050px);
+  margin: 0 auto;
+  padding: 18px 0 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.royal-home-compact .royal-home-bottom > svg {
+  color: var(--gold);
+}
+
+.royal-home-compact .royal-home-bottom a {
+  color: var(--gold-light);
+}
+
+/* Tablet */
+@media (max-width: 850px) {
+  .royal-home-compact .royal-games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .royal-home-compact .royal-game-info {
+    padding: 12px;
+  }
+
+  .royal-home-compact .royal-game-info h2,
+  .royal-home-compact .royal-game-info h3 {
+    font-size: 14px;
+  }
+
+  .royal-home-compact .royal-play-button {
+    min-height: 36px;
+    font-size: 12px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 560px) {
+  .royal-home-compact .royal-header {
+    min-height: 66px;
+    padding: 10px 12px;
+  }
+
+  .royal-home-compact .royal-brand-name {
+    font-size: 15px;
+  }
+
+  .royal-home-compact .royal-brand-crown {
+    width: 34px;
+    height: 34px;
+  }
+
+  .royal-home-compact .royal-brand-crown svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .royal-home-compact .royal-login,
+  .royal-home-compact .royal-register {
+    min-height: 36px;
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+
+  .royal-home-compact .royal-home-content {
+    width: calc(100% - 24px);
+  }
+
+  .royal-home-compact .royal-games-section {
+    margin: 27px 0 24px;
+  }
+
+  .royal-home-compact .royal-section-heading {
+    margin-bottom: 15px;
+  }
+
+  .royal-home-compact .royal-section-heading h1 {
+    font-size: 27px;
+  }
+
+  .royal-home-compact .royal-games-subtitle {
+    font-size: 12px;
+  }
+
+  .royal-home-compact .royal-games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .royal-home-compact .royal-game-card {
+    border-radius: 9px;
+  }
+
+  .royal-home-compact .royal-game-art {
+    height: 64%;
+  }
+
+  .royal-home-compact .royal-game-info {
+    height: 36%;
+    padding: 8px;
+    gap: 5px;
+  }
+
+  .royal-home-compact .royal-game-info h2,
+  .royal-home-compact .royal-game-info h3 {
+    font-size: 12px;
+  }
+
+  .royal-home-compact .royal-game-category {
+    font-size: 7px;
+  }
+
+  .royal-home-compact .royal-play-button {
+    min-height: 32px;
+    padding: 6px;
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .royal-home-compact .royal-play-button svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .royal-home-compact .royal-home-bottom {
+    width: calc(100% - 24px);
+    padding: 15px 0 22px;
+    font-size: 9px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 360px) {
+  .royal-home-compact .royal-brand-name {
+    font-size: 13px;
+  }
+
+  .royal-home-compact .royal-brand-crown {
+    width: 30px;
+    height: 30px;
+  }
+
+  .royal-home-compact .royal-login,
+  .royal-home-compact .royal-register {
+    padding: 7px;
+    font-size: 9px;
+  }
+
+  .royal-home-compact .royal-game-info {
+    padding: 6px;
+  }
+
+  .royal-home-compact .royal-game-info h2,
+  .royal-home-compact .royal-game-info h3 {
+    font-size: 11px;
+  }
+
+  .royal-home-compact .royal-play-button {
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .royal-home-compact .royal-game-card,
+  .royal-home-compact .royal-play-button {
+    transition: none;
+  }
+
+  .royal-home-compact .royal-game-card:hover {
+    transform: none;
+  }
+}
