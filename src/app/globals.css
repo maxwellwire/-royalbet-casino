@@ -1047,3 +1047,983 @@ main {
     height: 125px;
   }
 }
+/* =========================================
+   ROYALBET HOMEPAGE
+   Compact, premium, mobile-first design
+========================================= */
+
+.royal-home {
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--text);
+}
+
+.royal-header {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px max(4%, calc((100% - 1240px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5, 8, 7, 0.97);
+}
+
+.royal-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.royal-brand-crown {
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+}
+
+.royal-brand-name {
+  color: var(--gold-light);
+  font-family: "Playfair Display", serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.royal-brand-name > span {
+  color: #fff4d3;
+}
+
+.royal-brand-name small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-align: center;
+}
+
+.royal-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.royal-login,
+.royal-register {
+  min-height: 39px;
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.royal-login {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.royal-register,
+.royal-promo-button,
+.royal-play-button {
+  color: #17140c;
+  background: linear-gradient(135deg, #f5df9b, #d3a642);
+}
+
+.royal-home-content {
+  width: min(1160px, 92%);
+  margin: 0 auto;
+}
+
+.royal-hero {
+  position: relative;
+  min-height: 265px;
+  margin-top: 18px;
+  padding: 30px 35px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(215, 180, 106, 0.38);
+  border-radius: 15px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(3, 10, 7, 0.97) 0%,
+      rgba(4, 14, 9, 0.93) 42%,
+      rgba(4, 12, 8, 0.25) 100%
+    ),
+    radial-gradient(
+      ellipse at 78% 65%,
+      rgba(160, 113, 25, 0.28),
+      transparent 40%
+    ),
+    linear-gradient(130deg, #0d2418, #030605 70%);
+}
+
+.royal-hero-glow {
+  position: absolute;
+  z-index: -1;
+  top: -100px;
+  right: 12%;
+  width: 240px;
+  height: 340px;
+  transform: rotate(30deg);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(26, 94, 60, 0.2),
+    transparent
+  );
+  filter: blur(12px);
+}
+
+.royal-hero-copy {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 440px);
+}
+
+.royal-kicker,
+.royal-section-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.royal-hero h1 {
+  margin: 17px 0 7px;
+  color: var(--gold-light);
+  font-family: "Playfair Display", serif;
+  font-size: clamp(35px, 5vw, 57px);
+  line-height: 1;
+  letter-spacing: 1px;
+  text-shadow: 0 3px 25px rgba(215, 180, 106, 0.12);
+}
+
+.royal-hero h1 span {
+  display: block;
+  margin-top: 6px;
+  color: #fff7e4;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.35em;
+  font-weight: 500;
+  letter-spacing: 9px;
+}
+
+.royal-hero-divider {
+  width: 100px;
+  height: 1px;
+  margin-top: 17px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+
+.royal-hero-copy > p {
+  margin: 12px 0 18px;
+  color: #e6dfca;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 4px;
+}
+
+.royal-hero-copy > p i {
+  padding: 0 5px;
+  color: var(--gold);
+  font-style: normal;
+}
+
+.royal-gold-button {
+  min-height: 39px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #17140c;
+  border: 1px solid #f5df9b;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #f5df9b, #c99731);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.royal-hero-art {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  width: 53%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.royal-hero-ring {
+  position: absolute;
+  right: -30px;
+  bottom: -120px;
+  width: 340px;
+  height: 340px;
+  border: 8px double rgba(215, 180, 106, 0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(215, 180, 106, 0.08);
+}
+
+.royal-ring-two {
+  right: -4px;
+  bottom: -95px;
+  width: 290px;
+  height: 290px;
+  border-width: 2px;
+  border-color: rgba(215, 180, 106, 0.3);
+}
+
+.royal-playing-cards {
+  position: absolute;
+  top: 25px;
+  right: 25%;
+  display: flex;
+  transform: rotate(-8deg);
+}
+
+.royal-playing-card {
+  width: 58px;
+  height: 82px;
+  padding: 7px;
+  color: #e7d49e;
+  border: 1px solid rgba(215, 180, 106, 0.7);
+  border-radius: 6px;
+  background: linear-gradient(145deg, #18251a, #080b08);
+  font-family: Georgia, serif;
+  font-size: 17px;
+}
+
+.royal-playing-card span {
+  display: block;
+  margin-top: 3px;
+  font-size: 26px;
+}
+
+.royal-card-second {
+  margin-left: -17px;
+  transform: rotate(12deg) translateY(9px);
+}
+
+.royal-roulette {
+  position: absolute;
+  right: 4px;
+  bottom: -76px;
+  width: 235px;
+  height: 235px;
+  display: grid;
+  place-items: center;
+  border: 10px ridge #ad842e;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    #8c2020 0deg 12deg,
+    #101310 12deg 24deg,
+    #b18b38 24deg 25deg
+  );
+  box-shadow: 0 0 25px rgba(215, 180, 106, 0.22);
+}
+
+.royal-roulette-center {
+  width: 70px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  color: var(--gold-light);
+  border: 5px ridge #b18b38;
+  border-radius: 50%;
+  background: #11140f;
+  font-size: 32px;
+}
+
+.royal-hero-chip {
+  position: absolute;
+  right: 48%;
+  bottom: 30px;
+  color: rgba(215, 180, 106, 0.7);
+  font-size: 38px;
+}
+
+.royal-promo {
+  margin-top: 17px;
+  padding: 17px 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid rgba(215, 180, 106, 0.4);
+  border-radius: 11px;
+  background:
+    radial-gradient(
+      ellipse at 0% 100%,
+      rgba(23, 75, 54, 0.3),
+      transparent 65%
+    ),
+    linear-gradient(110deg, #17170f, #0d100c);
+}
+
+.royal-promo-icon {
+  width: 47px;
+  height: 47px;
+  flex: 0 0 47px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(215, 180, 106, 0.07);
+}
+
+.royal-promo-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.royal-promo-copy > span {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.royal-promo-copy h2 {
+  margin: 5px 0;
+  color: #fff5da;
+  font-size: clamp(14px, 2vw, 20px);
+  line-height: 1.25;
+}
+
+.royal-promo-copy h2 strong {
+  color: var(--gold-light);
+}
+
+.royal-promo-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.royal-promo-button {
+  min-height: 36px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.royal-games-section {
+  margin: 30px 0 35px;
+}
+
+.royal-section-heading {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.royal-section-kicker {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+}
+
+.royal-section-heading h2 {
+  margin: 5px 0 0;
+  color: #f5f0e5;
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.royal-section-heading h2 span {
+  color: var(--gold);
+}
+
+.royal-view-all {
+  padding-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.royal-games-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.royal-game-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(215, 180, 106, 0.24);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #131811, #090b09);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.royal-game-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(240, 217, 155, 0.8);
+}
+
+.royal-game-link {
+  display: block;
+  height: 100%;
+}
+
+.royal-game-art {
+  position: relative;
+  min-height: 115px;
+  aspect-ratio: 1 / 0.88;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+  border-bottom: 1px solid rgba(215, 180, 106, 0.16);
+}
+
+.royal-game-art::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(215, 180, 106, 0.19),
+    transparent 62%
+  );
+}
+
+.royal-game-orbit {
+  position: absolute;
+  z-index: -1;
+  width: 95px;
+  height: 95px;
+  border: 1px solid rgba(215, 180, 106, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 22px rgba(215, 180, 106, 0.08);
+}
+
+.royal-game-symbol {
+  color: var(--gold-light);
+  font-size: clamp(37px, 4vw, 55px);
+  line-height: 1;
+  filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.7));
+}
+
+.royal-game-category {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  color: rgba(255, 246, 219, 0.65);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.royal-game-aviator .royal-game-art {
+  background: linear-gradient(145deg, #250d1b, #090b0c 75%);
+}
+
+.royal-game-aviator .royal-game-symbol {
+  color: #ff506d;
+}
+
+.royal-game-slots .royal-game-art {
+  background: linear-gradient(145deg, #40210b, #12100b 75%);
+}
+
+.royal-game-roulette .royal-game-art {
+  background: linear-gradient(145deg, #1a2a19, #0b100c 75%);
+}
+
+.royal-game-roulette .royal-game-symbol {
+  color: #e6c46f;
+}
+
+.royal-game-blackjack .royal-game-art {
+  background: linear-gradient(145deg, #103c2c, #090e0b 75%);
+}
+
+.royal-game-blackjack .royal-game-symbol {
+  color: #f1e5c5;
+}
+
+.royal-game-spin-match .royal-game-art {
+  background: linear-gradient(145deg, #251342, #100b19 75%);
+}
+
+.royal-game-spin-match .royal-game-symbol {
+  color: #e6c46f;
+}
+
+.royal-game-info {
+  padding: 10px;
+}
+
+.royal-game-info h3 {
+  margin: 0 0 9px;
+  color: #f7f1e4;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.royal-play-button {
+  min-height: 29px;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.royal-bottom-cta {
+  margin: 25px 0 35px;
+  padding: 15px 17px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(17, 21, 17, 0.8);
+}
+
+.royal-bottom-icon {
+  width: 37px;
+  height: 37px;
+  flex: 0 0 37px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.royal-bottom-cta > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.royal-bottom-cta strong {
+  font-size: 11px;
+}
+
+.royal-bottom-cta p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.royal-bottom-link {
+  color: var(--gold-light);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.royal-home-footer {
+  padding: 22px 4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  border-top: 1px solid var(--border);
+  background: #060806;
+}
+
+.royal-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.royal-footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 17px;
+}
+
+.royal-footer-links a,
+.royal-home-footer > p {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.royal-home-footer > p {
+  width: 100%;
+  margin: 0;
+}
+
+/* Tablet */
+@media (min-width: 700px) {
+  .royal-home-footer > p {
+    width: auto;
+    margin-left: auto;
+  }
+}
+
+/* Mobile: iPhone and Android */
+@media (max-width: 560px) {
+  .royal-header {
+    min-height: 62px;
+    padding: 10px 4%;
+    gap: 8px;
+  }
+
+  .royal-brand {
+    gap: 6px;
+  }
+
+  .royal-brand-crown svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .royal-brand-name {
+    font-size: 15px;
+  }
+
+  .royal-brand-name small {
+    font-size: 7px;
+    letter-spacing: 2px;
+  }
+
+  .royal-header-actions {
+    gap: 6px;
+  }
+
+  .royal-login,
+  .royal-register {
+    min-height: 35px;
+    padding: 8px 9px;
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .royal-login svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .royal-home-content {
+    width: 94%;
+  }
+
+  .royal-hero {
+    min-height: 205px;
+    margin-top: 10px;
+    padding: 20px 15px;
+    border-radius: 10px;
+  }
+
+  .royal-kicker {
+    gap: 5px;
+    font-size: 7px;
+    letter-spacing: 1.2px;
+  }
+
+  .royal-hero h1 {
+    margin: 13px 0 5px;
+    font-size: clamp(29px, 9vw, 39px);
+  }
+
+  .royal-hero h1 span {
+    margin-top: 5px;
+    font-size: 10px;
+    letter-spacing: 5px;
+  }
+
+  .royal-hero-divider {
+    width: 70px;
+    margin-top: 12px;
+  }
+
+  .royal-hero-copy > p {
+    margin: 9px 0 13px;
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+
+  .royal-gold-button {
+    min-height: 34px;
+    padding: 8px 10px;
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .royal-hero-art {
+    width: 48%;
+    opacity: 0.8;
+  }
+
+  .royal-playing-cards {
+    top: 15px;
+    right: 14%;
+  }
+
+  .royal-playing-card {
+    width: 37px;
+    height: 55px;
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .royal-playing-card span {
+    font-size: 18px;
+  }
+
+  .royal-roulette {
+    right: -42px;
+    bottom: -53px;
+    width: 165px;
+    height: 165px;
+    border-width: 6px;
+  }
+
+  .royal-roulette-center {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+  }
+
+  .royal-hero-ring {
+    right: -70px;
+    bottom: -80px;
+    width: 210px;
+    height: 210px;
+  }
+
+  .royal-ring-two {
+    right: -47px;
+    bottom: -57px;
+    width: 170px;
+    height: 170px;
+  }
+
+  .royal-hero-chip {
+    right: 45%;
+    bottom: 17px;
+    font-size: 23px;
+  }
+
+  .royal-promo {
+    margin-top: 10px;
+    padding: 11px;
+    gap: 9px;
+    border-radius: 8px;
+  }
+
+  .royal-promo-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 7px;
+  }
+
+  .royal-promo-icon svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .royal-promo-copy > span {
+    font-size: 6px;
+    letter-spacing: 0.8px;
+  }
+
+  .royal-promo-copy h2 {
+    margin: 4px 0;
+    font-size: clamp(10px, 3vw, 13px);
+  }
+
+  .royal-promo-copy p {
+    font-size: 8px;
+    line-height: 1.4;
+  }
+
+  .royal-promo-button {
+    min-height: 32px;
+    padding: 7px 8px;
+    gap: 4px;
+    font-size: 8px;
+  }
+
+  .royal-promo-button svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .royal-games-section {
+    margin: 24px 0;
+  }
+
+  .royal-section-heading {
+    margin-bottom: 11px;
+  }
+
+  .royal-section-heading h2 {
+    font-size: 20px;
+  }
+
+  .royal-section-kicker {
+    font-size: 7px;
+  }
+
+  .royal-view-all {
+    font-size: 10px;
+  }
+
+  .royal-games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .royal-game-art {
+    min-height: 105px;
+    aspect-ratio: 1 / 0.82;
+  }
+
+  .royal-game-symbol {
+    font-size: 43px;
+  }
+
+  .royal-game-orbit {
+    width: 78px;
+    height: 78px;
+  }
+
+  .royal-game-info {
+    padding: 9px;
+  }
+
+  .royal-game-info h3 {
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .royal-play-button {
+    min-height: 31px;
+    font-size: 10px;
+  }
+
+  .royal-bottom-cta {
+    padding: 11px;
+    gap: 9px;
+  }
+
+  .royal-bottom-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .royal-bottom-cta strong {
+    font-size: 10px;
+  }
+
+  .royal-bottom-cta p {
+    font-size: 9px;
+  }
+
+  .royal-bottom-link {
+    font-size: 9px;
+  }
+
+  .royal-home-footer {
+    padding: 19px 4%;
+    gap: 12px;
+  }
+
+  .royal-footer-links {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .royal-brand-name {
+    font-size: 13px;
+  }
+
+  .royal-brand-crown svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .royal-login,
+  .royal-register {
+    padding: 7px;
+    font-size: 9px;
+  }
+
+  .royal-promo {
+    gap: 7px;
+  }
+
+  .royal-promo-icon {
+    display: none;
+  }
+
+  .royal-promo-button {
+    padding: 7px;
+  }
+
+  .royal-bottom-cta {
+    flex-wrap: wrap;
+  }
+
+  .royal-bottom-link {
+    margin-left: 41px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .royal-game-card {
+    transition: none;
+  }
+
+  .royal-game-card:hover {
+    transform: none;
+  }
+}
