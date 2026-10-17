@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { Crown, UserRound, LogOut } from "lucide-react";
+import {
+  Crown,
+  UserRound,
+  LogOut,
+} from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function Header() {
   const user = await getCurrentUser();
 
   return (
     <header className="site-header">
-      <Link href="/" className="brand">
+      <Link href="/" className="brand" aria-label="RoyalBet home">
         <span className="brand-icon">
           <Crown size={23} />
         </span>
@@ -21,7 +27,7 @@ export default async function Header() {
       <nav className="main-nav">
         <Link href="/">Home</Link>
         <Link href="/casino">Casino</Link>
-        <Link href="/account">Account</Link>
+        {user && <Link href="/account">Account</Link>}
       </nav>
 
       <div className="header-actions">
@@ -45,14 +51,15 @@ export default async function Header() {
                   <strong>
                     {user.username || user.name || "Player"}
                   </strong>
-
                   <span>My Profile</span>
                 </div>
               </div>
 
               <div className="profile-details">
                 <span>USERNAME</span>
-                <p>{user.username || user.name || "Not set"}</p>
+                <p>
+                  {user.username || user.name || "Not set"}
+                </p>
 
                 <span>EMAIL ADDRESS</span>
                 <p className="profile-email">{user.email}</p>
