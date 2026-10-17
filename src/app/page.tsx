@@ -2,201 +2,219 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crown,
-  Dice5,
+  Gamepad2,
+  LogIn,
   ShieldCheck,
   Sparkles,
-  Trophy
 } from "lucide-react";
-const features = [
+
+const games = [
   {
-    icon: Dice5,
-    title: "Casino Games",
-    text: "Explore interactive games using virtual credits."
+    name: "Aviator",
+    category: "CRASH GAME",
+    icon: "✈",
+    style: "aviator",
+    href: "/casino/aviator",
   },
   {
-    icon: ShieldCheck,
-    title: "Your Account",
-    text: "Register and view your account information."
+    name: "Slots",
+    category: "SLOT GAME",
+    icon: "🎰",
+    style: "slots",
+    href: "/casino/slots",
   },
   {
-    icon: Trophy,
-    title: "Game History",
-    text: "Keep track of recorded game results."
-  }
+    name: "Roulette",
+    category: "TABLE GAME",
+    icon: "🎡",
+    style: "roulette",
+    href: "/casino/roulette",
+  },
+  {
+    name: "Blackjack",
+    category: "CARD GAME",
+    icon: "♠",
+    style: "blackjack",
+    href: "/casino/blackjack",
+  },
+  {
+    name: "Spin Match",
+    category: "QUICK GAME",
+    icon: "🎯",
+    style: "spin-match",
+    href: "/casino/spin-match",
+  },
 ];
+
 export default function HomePage() {
   return (
-    <div className="page-container">
-      {/* HERO SECTION */}
-      <section className="hero">
-        <div className="hero-content">
-          <div className="eyebrow">
-            <Sparkles size={15} />
-            THE ROYAL EXPERIENCE
-          </div>
-          <h1>
-            PLAY WITH
-            <br />
-            <span className="gold-text">CONFIDENCE.</span>
-          </h1>
-          <p className="hero-description">
-            Step into RoyalBet, a premium casino-style
-            experience with a bold identity, elegant design,
-            and interactive games.
-          </p>
-          <div className="hero-actions">
-            <Link
-              href="/casino"
-              className="button button-gold button-large"
-            >
-              Explore casino <ArrowRight size={18} />
-            </Link>
-            <Link
-              href="/register"
-              className="button button-outline button-large"
-            >
-              Create account
-            </Link>
-          </div>
-          <div className="hero-trust">
-            <span>
-              <ShieldCheck size={16} />
-              Account-based access
-            </span>
-            <span>
-              <Crown size={16} />
-              Premium design
-            </span>
-          </div>
-        </div>
-        <div className="hero-art">
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <div className="hero-crown">
-            <Crown size={100} strokeWidth={1.2} />
-          </div>
-          <div className="hero-chip chip-one">ROYAL</div>
-          <div className="hero-chip chip-two">BET</div>
-          <div className="hero-art-caption">
-            <span>EST.</span>
-            <strong>ROYALBET CASINO</strong>
-            <span>THE GAME STARTS HERE</span>
-          </div>
-        </div>
-      </section>
-      {/* 200% BONUS PROMOTION */}
-      <section className="promo-banner">
-        <div>
-          <div className="eyebrow">
-            <Sparkles size={15} />
-            ROYALBET WELCOME OFFER
-          </div>
-          <h2>
-            GET <span className="gold-text">200% BONUS</span>
-          </h2>
-          <p>
-            Welcome to RoyalBet. Explore our casino-style
-            games with virtual demo credits.
-          </p>
-          <small>
-            Virtual-credit experience only. No real-money wagering.
-          </small>
-          {/* TELEGRAM PAYMENTS CONTACT */}
-          <div className="hero-actions">
-            <a
-              href="https://t.me/RoyalBetPayments"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="button button-outline"
-            >
-              Contact Payments Admin
-            </a>
-          </div>
-        </div>
-        <Link
-          href="/register"
-          className="button button-gold"
-        >
-          Join RoyalBet <ArrowRight size={17} />
+    <main className="royal-home">
+      <header className="royal-header">
+        <Link href="/" className="royal-brand" aria-label="RoyalBet home">
+          <span className="royal-brand-crown">
+            <Crown size={29} strokeWidth={1.7} />
+          </span>
+
+          <span className="royal-brand-name">
+            ROYAL<span>BET</span>
+            <small> C A S I N O </small>
+          </span>
         </Link>
-      </section>
-      {/* EXPERIENCE STATS */}
-      <section className="stats-grid">
-        <div className="stat-card">
-          <span>EXPERIENCE</span>
-          <strong>Premium</strong>
-          <small>Designed for mobile and desktop</small>
+
+        <div className="royal-header-actions">
+          <Link href="/login" className="royal-login">
+            <LogIn size={16} />
+            Login
+          </Link>
+
+          <Link href="/register" className="royal-register">
+            Join Now <ArrowRight size={15} />
+          </Link>
         </div>
-        <div className="stat-card">
-          <span>GAMES</span>
-          <strong>Interactive</strong>
-          <small>Start with our dice game</small>
-        </div>
-        <div className="stat-card">
-          <span>PLAY MODE</span>
-          <strong>Virtual</strong>
-          <small>No real-money wagering</small>
-        </div>
-      </section>
-      {/* FEATURES */}
-      <section className="section">
-        <div className="section-heading">
-          <div>
-            <div className="eyebrow">WHY ROYALBET</div>
-            <h2>
-              A BETTER WAY TO{" "}
-              <span className="gold-text">PLAY.</span>
-            </h2>
+      </header>
+
+      <div className="royal-home-content">
+        <section className="royal-hero">
+          <div className="royal-hero-glow" />
+
+          <div className="royal-hero-copy">
+            <div className="royal-kicker">
+              <Sparkles size={13} />
+              WELCOME TO ROYALBET
+            </div>
+
+            <h1>
+              ROYALBET
+              <span>CASINO</span>
+            </h1>
+
+            <div className="royal-hero-divider" />
+
+            <p>PLAY <i>•</i> WIN <i>•</i> REPEAT</p>
+
+            <Link href="/register" className="royal-gold-button">
+              Start Playing <ArrowRight size={16} />
+            </Link>
           </div>
-          <Link href="/casino" className="text-link">
-            View games <ArrowRight size={16} />
+
+          <div className="royal-hero-art" aria-hidden="true">
+            <div className="royal-hero-ring royal-ring-one" />
+            <div className="royal-hero-ring royal-ring-two" />
+
+            <div className="royal-playing-cards">
+              <div className="royal-playing-card">A<span>♠</span></div>
+              <div className="royal-playing-card royal-card-second">
+                K<span>♦</span>
+              </div>
+            </div>
+
+            <div className="royal-roulette">
+              <div className="royal-roulette-center">♛</div>
+            </div>
+
+            <div className="royal-hero-chip">♛</div>
+          </div>
+        </section>
+
+        <section className="royal-promo" aria-label="Deposit promotion">
+          <div className="royal-promo-icon">
+            <Crown size={27} />
+          </div>
+
+          <div className="royal-promo-copy">
+            <span>ROYALBET WELCOME OFFER</span>
+            <h2>
+              <strong>200%</strong> DEPOSIT BONUS
+            </h2>
+            <p>Get more from your eligible deposit.</p>
+          </div>
+
+          <Link href="/register" className="royal-promo-button">
+            Claim Offer <ArrowRight size={15} />
           </Link>
-        </div>
-        <div className="feature-grid">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
+        </section>
+
+        <section className="royal-games-section">
+          <div className="royal-section-heading">
+            <div>
+              <span className="royal-section-kicker">YOUR NEXT MOVE</span>
+              <h2>
+                Featured <span>Games</span>
+              </h2>
+            </div>
+
+            <Link href="/casino" className="royal-view-all">
+              View All <ArrowRight size={15} />
+            </Link>
+          </div>
+
+          <div className="royal-games-grid">
+            {games.map((game) => (
               <article
-                className="feature-card"
-                key={feature.title}
+                className={`royal-game-card royal-game-${game.style}`}
+                key={game.name}
               >
-                <div className="feature-icon">
-                  <Icon size={26} />
-                </div>
-                <h3>{feature.title}</h3>
-                <p>{feature.text}</p>
+                <Link
+                  href={game.href}
+                  className="royal-game-link"
+                  aria-label={`Open ${game.name}`}
+                >
+                  <div
+                    className="royal-game-art"
+                    aria-hidden="true"
+                  >
+                    <span className="royal-game-orbit" />
+                    <span className="royal-game-symbol">
+                      {game.icon}
+                    </span>
+                    <span className="royal-game-category">
+                      {game.category}
+                    </span>
+                  </div>
+
+                  <div className="royal-game-info">
+                    <h3>{game.name}</h3>
+                    <span className="royal-play-button">
+                      Play Now <ArrowRight size={13} />
+                    </span>
+                  </div>
+                </Link>
               </article>
-            );
-          })}
-        </div>
-      </section>
-      {/* FINAL CALL TO ACTION */}
-      <section className="promo-banner">
-        <div>
-          <div className="eyebrow">YOUR NEXT MOVE</div>
-          <h2>READY TO ENTER THE ROYAL ROOM?</h2>
-          <p>
-            Create an account and discover the RoyalBet
-            virtual-credit gaming experience.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <Link
-            href="/register"
-            className="button button-gold"
-          >
-            Create account <ArrowRight size={17} />
+            ))}
+          </div>
+        </section>
+
+        <section className="royal-bottom-cta">
+          <div className="royal-bottom-icon">
+            <ShieldCheck size={19} />
+          </div>
+
+          <div>
+            <strong>Your Royal experience starts here.</strong>
+            <p>Create an account to access your player dashboard.</p>
+          </div>
+
+          <Link href="/register" className="royal-bottom-link">
+            Create Account
           </Link>
-          <a
-            href="https://t.me/RoyalBetPayments"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="button button-outline"
-          >
-            Contact Payments Admin
-          </a>
+        </section>
+      </div>
+
+      <footer className="royal-home-footer">
+        <Link href="/" className="royal-footer-brand">
+          <Crown size={16} /> ROYALBET CASINO
+        </Link>
+
+        <div className="royal-footer-links">
+          <Link href="/login">Login</Link>
+          <Link href="/register">Register</Link>
+          <Link href="https://t.me/RoyalBetPayments" target="_blank">
+            Support
+          </Link>
         </div>
-      </section>
-    </div>
+
+        <p>Play responsibly. Terms and conditions apply.</p>
+      </footer>
+    </main>
   );
 }
