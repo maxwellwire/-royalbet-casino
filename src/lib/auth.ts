@@ -6,7 +6,7 @@ export const SESSION_COOKIE = "royalbet_session";
 
 const SESSION_DURATION_DAYS = 7;
 
-function hashToken(token: string) {
+function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -54,16 +54,18 @@ export async function getCurrentUser() {
   });
 
   if (!session) {
+    cookieStore.delete(SESSION_COOKIE);
     return null;
   }
 
   if (session.expiresAt <= new Date()) {
-    await prisma.session.delete({
+    await prisma.session.deleteMany({
       where: {
         id: session.id,
       },
     });
 
+    cookieStore.delete(SESSION_COOKIE);
     return null;
   }
 
@@ -74,13 +76,15 @@ export async function destroyCurrentSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
 
-  if (token) {
-    await prisma.session.deleteMany({
-      where: {
-        token: hashToken(token),
-      },
-    });
+  try {
+    if (token) {
+      await prisma.session.deleteMany({
+        where: {
+          token: hashToken(token),
+        },
+      });
+    }
+  } finally {
+    cookieStore.delete(SESSION_COOKIE);
   }
-
-  cookieStore.delete(SESSION_COOKIE);
 }
