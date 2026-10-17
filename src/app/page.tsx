@@ -2,219 +2,194 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crown,
-  Gamepad2,
   LogIn,
-  ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 
 const games = [
   {
     name: "Aviator",
     category: "CRASH GAME",
-    icon: "✈",
     style: "aviator",
     href: "/casino/aviator",
   },
   {
     name: "Slots",
-    category: "SLOT GAME",
-    icon: "🎰",
+    category: "SLOT MACHINE",
     style: "slots",
     href: "/casino/slots",
   },
   {
+    name: "Mines",
+    category: "STRATEGY GAME",
+    style: "mines",
+    href: "/casino/mines",
+  },
+  {
     name: "Roulette",
     category: "TABLE GAME",
-    icon: "🎡",
     style: "roulette",
     href: "/casino/roulette",
-  },
-  {
-    name: "Blackjack",
-    category: "CARD GAME",
-    icon: "♠",
-    style: "blackjack",
-    href: "/casino/blackjack",
-  },
-  {
-    name: "Spin Match",
-    category: "QUICK GAME",
-    icon: "🎯",
-    style: "spin-match",
-    href: "/casino/spin-match",
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="royal-home">
+    <main className="royal-home royal-home-compact">
       <header className="royal-header">
-        <Link href="/" className="royal-brand" aria-label="RoyalBet home">
+        <Link
+          href="/"
+          className="royal-brand"
+          aria-label="RoyalBet home"
+        >
           <span className="royal-brand-crown">
-            <Crown size={29} strokeWidth={1.7} />
+            <Crown size={26} strokeWidth={1.7} />
           </span>
 
           <span className="royal-brand-name">
             ROYAL<span>BET</span>
-            <small> C A S I N O </small>
+            <small>CASINO</small>
           </span>
         </Link>
 
         <div className="royal-header-actions">
           <Link href="/login" className="royal-login">
             <LogIn size={16} />
-            Login
+            Log in
           </Link>
 
           <Link href="/register" className="royal-register">
-            Join Now <ArrowRight size={15} />
+            Join now
+            <ArrowRight size={15} />
           </Link>
         </div>
       </header>
 
-      <div className="royal-home-content">
-        <section className="royal-hero">
-          <div className="royal-hero-glow" />
-
-          <div className="royal-hero-copy">
-            <div className="royal-kicker">
-              <Sparkles size={13} />
-              WELCOME TO ROYALBET
-            </div>
+      <section className="royal-games-section">
+        <div className="royal-section-heading">
+          <div>
+            <span className="royal-section-kicker">
+              THE ROYAL COLLECTION
+            </span>
 
             <h1>
-              ROYALBET
-              <span>CASINO</span>
+              Choose your <span>game</span>
             </h1>
 
-            <div className="royal-hero-divider" />
-
-            <p>PLAY <i>•</i> WIN <i>•</i> REPEAT</p>
-
-            <Link href="/register" className="royal-gold-button">
-              Start Playing <ArrowRight size={16} />
-            </Link>
+            <p className="royal-games-subtitle">
+              Four games. One destination.
+            </p>
           </div>
-
-          <div className="royal-hero-art" aria-hidden="true">
-            <div className="royal-hero-ring royal-ring-one" />
-            <div className="royal-hero-ring royal-ring-two" />
-
-            <div className="royal-playing-cards">
-              <div className="royal-playing-card">A<span>♠</span></div>
-              <div className="royal-playing-card royal-card-second">
-                K<span>♦</span>
-              </div>
-            </div>
-
-            <div className="royal-roulette">
-              <div className="royal-roulette-center">♛</div>
-            </div>
-
-            <div className="royal-hero-chip">♛</div>
-          </div>
-        </section>
-
-        <section className="royal-promo" aria-label="Deposit promotion">
-          <div className="royal-promo-icon">
-            <Crown size={27} />
-          </div>
-
-          <div className="royal-promo-copy">
-            <span>ROYALBET WELCOME OFFER</span>
-            <h2>
-              <strong>200%</strong> DEPOSIT BONUS
-            </h2>
-            <p>Get more from your eligible deposit.</p>
-          </div>
-
-          <Link href="/register" className="royal-promo-button">
-            Claim Offer <ArrowRight size={15} />
-          </Link>
-        </section>
-
-        <section className="royal-games-section">
-          <div className="royal-section-heading">
-            <div>
-              <span className="royal-section-kicker">YOUR NEXT MOVE</span>
-              <h2>
-                Featured <span>Games</span>
-              </h2>
-            </div>
-
-            <Link href="/casino" className="royal-view-all">
-              View All <ArrowRight size={15} />
-            </Link>
-          </div>
-
-          <div className="royal-games-grid">
-            {games.map((game) => (
-              <article
-                className={`royal-game-card royal-game-${game.style}`}
-                key={game.name}
-              >
-                <Link
-                  href={game.href}
-                  className="royal-game-link"
-                  aria-label={`Open ${game.name}`}
-                >
-                  <div
-                    className="royal-game-art"
-                    aria-hidden="true"
-                  >
-                    <span className="royal-game-orbit" />
-                    <span className="royal-game-symbol">
-                      {game.icon}
-                    </span>
-                    <span className="royal-game-category">
-                      {game.category}
-                    </span>
-                  </div>
-
-                  <div className="royal-game-info">
-                    <h3>{game.name}</h3>
-                    <span className="royal-play-button">
-                      Play Now <ArrowRight size={13} />
-                    </span>
-                  </div>
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="royal-bottom-cta">
-          <div className="royal-bottom-icon">
-            <ShieldCheck size={19} />
-          </div>
-
-          <div>
-            <strong>Your Royal experience starts here.</strong>
-            <p>Create an account to access your player dashboard.</p>
-          </div>
-
-          <Link href="/register" className="royal-bottom-link">
-            Create Account
-          </Link>
-        </section>
-      </div>
-
-      <footer className="royal-home-footer">
-        <Link href="/" className="royal-footer-brand">
-          <Crown size={16} /> ROYALBET CASINO
-        </Link>
-
-        <div className="royal-footer-links">
-          <Link href="/login">Login</Link>
-          <Link href="/register">Register</Link>
-          <Link href="https://t.me/RoyalBetPayments" target="_blank">
-            Support
-          </Link>
         </div>
 
-        <p>Play responsibly. Terms and conditions apply.</p>
-      </footer>
+        <div className="royal-games-grid">
+          {games.map((game) => (
+            <article
+              className={`royal-game-card royal-game-${game.style}`}
+              key={game.name}
+            >
+              <div className="royal-game-art">
+                <span
+                  className="royal-game-orbit"
+                  aria-hidden="true"
+                />
+
+                {game.style === "aviator" && (
+                  <div
+                    className="royal-art-aviator"
+                    aria-hidden="true"
+                  >
+                    <span className="aviator-trail" />
+                    <span className="aviator-plane">✈</span>
+                    <span className="aviator-multiplier">
+                      2.45×
+                    </span>
+                  </div>
+                )}
+
+                {game.style === "slots" && (
+                  <div
+                    className="royal-art-slots"
+                    aria-hidden="true"
+                  >
+                    <div className="slot-reel">7</div>
+                    <div className="slot-reel">★</div>
+                    <div className="slot-reel">7</div>
+                  </div>
+                )}
+
+                {game.style === "mines" && (
+                  <div
+                    className="royal-art-mines"
+                    aria-hidden="true"
+                  >
+                    {[
+                      "💎",
+                      "·",
+                      "💎",
+                      "·",
+                      "✹",
+                      "💎",
+                      "·",
+                      "💎",
+                      "·",
+                    ].map((item, index) => (
+                      <span key={index}>{item}</span>
+                    ))}
+                  </div>
+                )}
+
+                {game.style === "roulette" && (
+                  <div
+                    className="royal-art-roulette"
+                    aria-hidden="true"
+                  >
+                    <div className="roulette-wheel">
+                      <span>0</span>
+                      <span>32</span>
+                      <span>15</span>
+                      <span>19</span>
+                      <span>4</span>
+                      <span>21</span>
+                      <div className="roulette-hub">♛</div>
+                    </div>
+                  </div>
+                )}
+
+                <span className="royal-game-category">
+                  {game.category}
+                </span>
+              </div>
+
+              <div className="royal-game-info">
+                <div className="royal-game-title">
+                  <h2>{game.name}</h2>
+                  <span className="royal-game-status">
+                    PLAY
+                  </span>
+                </div>
+
+                <Link
+                  href={game.href}
+                  className="royal-play-button"
+                  aria-label={`Play ${game.name}`}
+                >
+                  Play Now
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <div className="royal-home-bottom">
+        <Crown size={17} />
+        <span>ROYALBET CASINO</span>
+        <span className="royal-bottom-separator">•</span>
+        <Link href="https://t.me/RoyalBetPayments">
+          Support
+        </Link>
+      </div>
     </main>
   );
 }
