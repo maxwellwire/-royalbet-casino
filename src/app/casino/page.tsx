@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   Search,
   Gamepad2,
@@ -40,9 +41,11 @@ export default function CasinoPage() {
     });
   }, [search, category]);
 
-  const playableCount = CASINO_GAMES.filter(
+  const playableGames = CASINO_GAMES.filter(
     (game) => game.playable
-  ).length;
+  );
+
+  const playableCount = playableGames.length;
 
   return (
     <main className="explore-page">
@@ -58,9 +61,9 @@ export default function CasinoPage() {
           </h1>
 
           <p>
-            Find your next favourite game in the RoyalBet
-            collection. Discover new experiences and play
-            available games using virtual credits.
+            Discover the RoyalBet game collection. Explore
+            available games, try new experiences, and play
+            using virtual credits.
           </p>
 
           <div className="explore-stats">
@@ -100,8 +103,8 @@ export default function CasinoPage() {
             <span className="section-kicker">FIND YOUR GAME</span>
             <h2>Explore the collection</h2>
             <p>
-              Browse the library and see which games are
-              available to play.
+              Browse all games and see which ones are ready
+              to play.
             </p>
           </div>
 
@@ -165,7 +168,7 @@ export default function CasinoPage() {
                     style={
                       {
                         "--game-accent": game.accent,
-                      } as React.CSSProperties
+                      } as CSSProperties
                     }
                   >
                     <div className="game-artwork-glow" />
@@ -213,6 +216,20 @@ export default function CasinoPage() {
                         <LockKeyhole size={16} />
                       )}
                     </span>
+                  </div>
+
+                  <div className="game-card-action">
+                    {game.playable ? (
+                      <span className="game-action-available">
+                        Play Now
+                        <ArrowUpRight size={15} />
+                      </span>
+                    ) : (
+                      <span className="game-action-upcoming">
+                        Coming Soon
+                        <LockKeyhole size={13} />
+                      </span>
+                    )}
                   </div>
                 </>
               );
@@ -265,19 +282,32 @@ export default function CasinoPage() {
 
       <section className="explore-bottom-cta">
         <div>
-          <span className="section-kicker">YOUR NEXT GAME AWAITS</span>
+          <span className="section-kicker">
+            YOUR NEXT GAME AWAITS
+          </span>
+
           <h2>Ready to play?</h2>
+
           <p>
-            Start with Royal Dice, our currently available
-            virtual-credit game.
+            Choose one of our {playableCount} currently
+            available games and start exploring with virtual
+            credits.
           </p>
         </div>
 
-        <Link href="/casino/dice" className="explore-play-button">
-          <Gamepad2 size={18} />
-          Play Royal Dice
-          <ArrowUpRight size={17} />
-        </Link>
+        <div className="explore-available-actions">
+          {playableGames.map((game) => (
+            <Link
+              key={game.id}
+              href={game.route}
+              className="explore-play-button"
+            >
+              <Gamepad2 size={17} />
+              {game.name}
+              <ArrowUpRight size={17} />
+            </Link>
+          ))}
+        </div>
       </section>
     </main>
   );
