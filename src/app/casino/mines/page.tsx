@@ -8,7 +8,14 @@ export default async function MinesPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login?next=/casino/mines");
+    redirect("/login?next=%2Fcasino%2Fmines");
+  }
+
+  if (
+    !Number.isFinite(Number(user.balance)) ||
+    Number(user.balance) < 50
+  ) {
+    redirect("/wallet?type=DEPOSIT&required=50");
   }
 
   return <RoyalGames game="mines" />;
