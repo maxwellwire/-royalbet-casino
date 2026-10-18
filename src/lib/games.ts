@@ -35,10 +35,10 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "aviator",
     category: "Crash Games",
     description:
-      "Aviator gameplay is being prepared for secure server-side settlement.",
+      "Take off with Royal Aviator. Watch the multiplier rise and cash out before the flight ends.",
     route: "/casino/aviator",
     featured: true,
-    playable: false,
+    playable: true,
     symbol: "✈️",
     accent: "#c95c55",
   },
@@ -48,10 +48,10 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "slots",
     category: "Slots",
     description:
-      "Royal Slots will open when secure gameplay is ready.",
+      "Spin the reels, match symbols, and discover your luck in Royal Slots.",
     route: "/casino/slots",
     featured: true,
-    playable: false,
+    playable: true,
     symbol: "🎰",
     accent: "#d6b56d",
   },
@@ -61,10 +61,10 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "mines",
     category: "Quick Games",
     description:
-      "Royal Mines is being prepared for secure gameplay.",
+      "Find hidden gems, avoid the mines, and cash out your winnings before hitting a mine.",
     route: "/casino/mines",
     featured: true,
-    playable: false,
+    playable: true,
     symbol: "💎",
     accent: "#5cabc0",
   },
@@ -74,7 +74,7 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "roulette",
     category: "Table Games",
     description:
-      "Royal Roulette is coming soon.",
+      "Royal Roulette is coming soon. Get ready to try your luck at the wheel.",
     route: "/casino/roulette",
     featured: false,
     playable: false,
@@ -87,7 +87,7 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "blackjack",
     category: "Card Games",
     description:
-      "Royal Blackjack is coming soon.",
+      "Royal Blackjack is coming soon. A classic card-table experience is on the way.",
     route: "/casino/blackjack",
     featured: false,
     playable: false,
@@ -100,7 +100,7 @@ export const CASINO_GAMES: CasinoGame[] = [
     slug: "spin-match",
     category: "Quick Games",
     description:
-      "Spin Match is coming soon.",
+      "Spin Match is coming soon. Stay tuned for another quick game from RoyalBet.",
     route: "/casino/spin-match",
     featured: false,
     playable: false,
@@ -109,17 +109,14 @@ export const CASINO_GAMES: CasinoGame[] = [
   },
 ];
 
-export const FEATURED_GAMES = CASINO_GAMES.filter(
-  (game) => game.featured
-);
+export const FEATURED_GAMES: CasinoGame[] =
+  CASINO_GAMES.filter((game) => game.featured);
 
-export const AVAILABLE_GAMES = CASINO_GAMES.filter(
-  (game) => game.playable
-);
+export const AVAILABLE_GAMES: CasinoGame[] =
+  CASINO_GAMES.filter((game) => game.playable);
 
-export const COMING_SOON_GAMES = CASINO_GAMES.filter(
-  (game) => !game.playable
-);
+export const COMING_SOON_GAMES: CasinoGame[] =
+  CASINO_GAMES.filter((game) => !game.playable);
 
 export function getGameBySlug(
   slug: string
@@ -127,4 +124,31 @@ export function getGameBySlug(
   return CASINO_GAMES.find(
     (game) => game.slug === slug
   );
+}
+
+export function getGamesByCategory(
+  category: GameCategory
+): CasinoGame[] {
+  if (category === "All Games") {
+    return CASINO_GAMES;
+  }
+
+  return CASINO_GAMES.filter(
+    (game) => game.category === category
+  );
+}
+
+export function getPlayableGames(): CasinoGame[] {
+  return AVAILABLE_GAMES;
+}
+
+export function getFeaturedGames(): CasinoGame[] {
+  return FEATURED_GAMES;
+}
+
+export function isGamePlayable(
+  slug: string
+): boolean {
+  const game = getGameBySlug(slug);
+  return game?.playable ?? false;
 }
