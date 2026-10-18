@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Crown, Dice5, History } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Crown,
+  History,
+} from "lucide-react";
+
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -10,7 +16,7 @@ export default async function AccountPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/login?next=/account");
   }
 
   const history = await prisma.gameHistory.findMany({
@@ -24,7 +30,7 @@ export default async function AccountPage() {
   });
 
   return (
-    <div className="page-container">
+    <main className="page-container">
       <section className="account-welcome">
         <div>
           <div className="eyebrow">
@@ -42,6 +48,7 @@ export default async function AccountPage() {
       </section>
 
       <section className="account-grid">
+        {/* BALANCE AND WALLET ACTIONS */}
         <article className="balance-card">
           <span>USDT BALANCE</span>
 
@@ -50,20 +57,28 @@ export default async function AccountPage() {
           </strong>
 
           <small>Account balance</small>
-        </article>
 
-        <article className="account-info-card">
-          <Dice5 size={25} />
+          <div className="account-balance-actions">
+            <Link
+              href="/wallet?type=DEPOSIT"
+              className="button button-gold"
+            >
+              <ArrowDownToLine size={17} />
+              Deposit
+            </Link>
 
-          <h3>Explore games</h3>
-
-          <p>Explore Royal Dice.</p>
-
-          <Link href="/casino/dice" className="text-link">
-            Play now →
-          </Link>
+            <Link
+              href="/wallet?type=WITHDRAWAL"
+              className="button button-outline"
+            >
+              <ArrowUpFromLine size={17} />
+              Withdraw
+            </Link>
+          </div>
         </article>
       </section>
+
+      {/* DICE GAME CARD REMOVED FROM ACCOUNT PAGE */}
 
       <section className="section">
         <div className="section-heading">
@@ -79,7 +94,7 @@ export default async function AccountPage() {
 
         {history.length === 0 ? (
           <div className="empty-state">
-            <Dice5 size={36} />
+            <History size={36} />
 
             <h3>No games played yet</h3>
 
@@ -88,10 +103,10 @@ export default async function AccountPage() {
             </p>
 
             <Link
-              href="/casino/dice"
+              href="/casino"
               className="button button-gold"
             >
-              Try Royal Dice
+              Explore available games
             </Link>
           </div>
         ) : (
@@ -123,7 +138,9 @@ export default async function AccountPage() {
                     </td>
 
                     <td>
-                      {game.createdAt.toLocaleDateString()}
+                      {new Date(
+                        game.createdAt
+                      ).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}
@@ -132,6 +149,6 @@ export default async function AccountPage() {
           </div>
         )}
       </section>
-    </div>
+    </main>
   );
 }
