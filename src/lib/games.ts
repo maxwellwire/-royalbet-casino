@@ -31,13 +31,14 @@ export const GAME_CATEGORIES: GameCategory[] = [
 export const CASINO_GAMES: CasinoGame[] = [
   {
     id: "aviator",
-    name: "Aviator",
+    name: "Royal Aviator",
     slug: "aviator",
     category: "Crash Games",
-    description: "Watch the multiplier and cash out before the flight ends.",
+    description:
+      "Aviator gameplay is being prepared for secure server-side settlement.",
     route: "/casino/aviator",
     featured: true,
-    playable: true,
+    playable: false,
     symbol: "✈️",
     accent: "#c95c55",
   },
@@ -46,10 +47,11 @@ export const CASINO_GAMES: CasinoGame[] = [
     name: "Royal Slots",
     slug: "slots",
     category: "Slots",
-    description: "Spin the reels and discover royal combinations.",
+    description:
+      "Royal Slots will open when secure gameplay is ready.",
     route: "/casino/slots",
     featured: true,
-    playable: true,
+    playable: false,
     symbol: "🎰",
     accent: "#d6b56d",
   },
@@ -58,31 +60,21 @@ export const CASINO_GAMES: CasinoGame[] = [
     name: "Royal Mines",
     slug: "mines",
     category: "Quick Games",
-    description: "Reveal hidden gems and avoid the mines.",
+    description:
+      "Royal Mines is being prepared for secure gameplay.",
     route: "/casino/mines",
     featured: true,
-    playable: true,
+    playable: false,
     symbol: "💎",
     accent: "#5cabc0",
-  },
-  {
-    id: "royal-dice",
-    name: "Royal Dice",
-    slug: "dice",
-    category: "Table Games",
-    description: "Roll the dice and test your predictions.",
-    route: "/casino/dice",
-    featured: false,
-    playable: false,
-    symbol: "🎲",
-    accent: "#8c9b83",
   },
   {
     id: "royal-roulette",
     name: "Royal Roulette",
     slug: "roulette",
     category: "Table Games",
-    description: "Pick your numbers on the royal roulette wheel.",
+    description:
+      "Royal Roulette is coming soon.",
     route: "/casino/roulette",
     featured: false,
     playable: false,
@@ -94,7 +86,8 @@ export const CASINO_GAMES: CasinoGame[] = [
     name: "Royal Blackjack",
     slug: "blackjack",
     category: "Card Games",
-    description: "Play your cards and aim for a hand of 21.",
+    description:
+      "Royal Blackjack is coming soon.",
     route: "/casino/blackjack",
     featured: false,
     playable: false,
@@ -106,7 +99,8 @@ export const CASINO_GAMES: CasinoGame[] = [
     name: "Spin Match",
     slug: "spin-match",
     category: "Quick Games",
-    description: "Match symbols in a quick casino challenge.",
+    description:
+      "Spin Match is coming soon.",
     route: "/casino/spin-match",
     featured: false,
     playable: false,
@@ -115,20 +109,22 @@ export const CASINO_GAMES: CasinoGame[] = [
   },
 ];
 
-export const FEATURED_GAMES: CasinoGame[] = CASINO_GAMES.filter(
+export const FEATURED_GAMES = CASINO_GAMES.filter(
   (game) => game.featured
 );
 
-export const AVAILABLE_GAMES: CasinoGame[] = CASINO_GAMES.filter(
+export const AVAILABLE_GAMES = CASINO_GAMES.filter(
   (game) => game.playable
 );
 
-export const COMING_SOON_GAMES: CasinoGame[] = CASINO_GAMES.filter(
+export const COMING_SOON_GAMES = CASINO_GAMES.filter(
   (game) => !game.playable
 );
 
 export function getGameBySlug(
   slug: string
 ): CasinoGame | undefined {
-  return CASINO_GAMES.find((game) => game.slug === slug);
+  return CASINO_GAMES.find(
+    (game) => game.slug === slug
+  );
 }
