@@ -14,12 +14,13 @@ model User {
   email        String        @unique
   passwordHash String
   role         String        @default("USER")
-  balance      Decimal       @default(1000) @db.Decimal(18, 2)
+  balance      Decimal       @default(0) @db.Decimal(18, 2)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   sessions     Session[]
   gameHistory  GameHistory[]
+  transactions Transaction[]
 }
 
 model Session {
@@ -36,16 +37,34 @@ model Session {
 }
 
 model GameHistory {
-  id          String   @id @default(cuid())
-  userId      String
-  game        String
-  betAmount   Decimal  @db.Decimal(18, 2)
-  payout      Decimal  @default(0) @db.Decimal(18, 2)
-  result      String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  game      String
+  betAmount Decimal  @db.Decimal(18, 2)
+  payout    Decimal  @default(0) @db.Decimal(18, 2)
+  result    String
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model Transaction {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  amount     Decimal  @db.Decimal(18, 2)
+  status     String   @default("PENDING")
+  reference  String?
+  note       String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
