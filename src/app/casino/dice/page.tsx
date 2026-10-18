@@ -23,11 +23,20 @@ export default async function DicePage() {
         </h1>
 
         <p>
-          Welcome, {user.username}. Your virtual balance is{" "}
-          <strong>{Number(user.balance).toLocaleString()}</strong> USDT.
+          Welcome, {user.username}. Your recorded balance is{" "}
+          <strong>{Number(user.balance).toFixed(2)} USDT</strong>.
         </p>
 
         <p>
+          USDT giveaway balances are not available for game wagers.
+          Wagering is currently disabled.
+        </p>
+
+        <p>
+          <Link href="/wallet" className="text-link">
+            Manage wallet requests →
+          </Link>
+          {" · "}
           <Link href="/account" className="text-link">
             Back to account →
           </Link>
