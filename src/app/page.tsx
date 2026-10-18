@@ -8,6 +8,7 @@ import {
   Sparkles,
   ShieldCheck,
   UserRound,
+  LockKeyhole,
 } from "lucide-react";
 
 type CurrentUser = {
@@ -18,6 +19,8 @@ type CurrentUser = {
   role?: string;
   balance?: number;
 };
+
+const MINIMUM_GAME_BALANCE = 50;
 
 const games = [
   {
@@ -91,16 +94,42 @@ export default function HomePage() {
 
     checkSession();
 
+    // Refresh account status when the visitor returns to this tab.
+    function handleFocus() {
+      checkSession();
+    }
+
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       active = false;
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
   const isLoggedIn = Boolean(user);
+  const balance = Number(user?.balance ?? 0);
+  const hasMinimumBalance =
+    isLoggedIn &&
+    Number.isFinite(balance) &&
+    balance >= MINIMUM_GAME_BALANCE;
+
+  function gameDestination(href: string) {
+    if (!isLoggedIn) {
+      return `/login?next=${encodeURIComponent(href)}`;
+    }
+
+    if (!hasMinimumBalance) {
+      return "/account";
+    }
+
+    return href;
+  }
 
   return (
     <main className="royal-home">
       <div className="royal-home-content">
+        {/* HERO */}
         <section className="royal-hero">
           <div className="royal-hero-glow" />
 
@@ -123,10 +152,27 @@ export default function HomePage() {
 
             {authLoading ? (
               <span className="royal-gold-button">
-                Loading account...
+                Checking account...
               </span>
+            ) : !isLoggedIn ? (
+              <Link
+                href="/login?next=%2Fcasino"
+                className="royal-gold-button"
+              >
+                Log In to Play <LockKeyhole size={16} />
+              </Link>
+            ) : !hasMinimumBalance ? (
+              <Link
+                href="/account"
+                className="royal-gold-button"
+              >
+                Fund Your Account <ArrowRight size={16} />
+              </Link>
             ) : (
-              <Link href="/casino" className="royal-gold-button">
+              <Link
+                href="/casino"
+                className="royal-gold-button"
+              >
                 Start Playing <ArrowRight size={16} />
               </Link>
             )}
@@ -154,6 +200,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* PROMOTION */}
         <section
           className="royal-promo"
           aria-label="Deposit promotion"
@@ -182,6 +229,7 @@ export default function HomePage() {
           </a>
         </section>
 
+        {/* FEATURED GAMES */}
         <section className="royal-games-section">
           <div className="royal-section-heading">
             <div>
@@ -194,50 +242,108 @@ export default function HomePage() {
               </h2>
             </div>
 
-            <Link href="/casino" className="royal-view-all">
+            <Link
+              href={
+                !isLoggedIn
+                  ? "/login?next=%2Fcasino"
+                  : !hasMinimumBalance
+                    ? "/account"
+                    : "/casino"
+              }
+              className="royal-view-all"
+            >
               View All <ArrowRight size={15} />
             </Link>
           </div>
 
           <div className="royal-games-grid">
-            {games.map((game) => (
-              <article
-                className={`royal-game-card royal-game-${game.style}`}
-                key={game.name}
-              >
-                <Link
-                  href={game.href}
-                  className="royal-game-link"
-                  aria-label={`Open ${game.name}`}
+            {games.map((game) => {
+              const destination = gameDestination(game.href);
+
+              const actionLabel = authLoading
+                ? "Checking..."
+                : !isLoggedIn
+                  ? "Log In to Play"
+                  : !hasMinimumBalance
+                    ? "Fund Account"
+                    : "Play Now";
+
+              return (
+                <article
+                  className={`royal-game-card royal-game-${game.style}`}
+                  key={game.name}
                 >
-                  <div
-                    className="royal-game-art"
-                    aria-hidden="true"
+                  <Link
+                    href={
+                      authLoading
+                        ? "/login"
+                        : destination
+                    }
+                    className="royal-game-link"
+                    aria-label={
+                      authLoading
+                        ? "Check account before playing"
+                        : `${actionLabel}: ${game.name}`
+                    }
                   >
-                    <span className="royal-game-orbit" />
+                    <div
+                      className="royal-game-art"
+                      aria-hidden="true"
+                    >
+                      <span className="royal-game-orbit" />
 
-                    <span className="royal-game-symbol">
-                      {game.icon}
-                    </span>
+                      <span className="royal-game-symbol">
+                        {game.icon}
+                      </span>
 
-                    <span className="royal-game-category">
-                      {game.category}
-                    </span>
-                  </div>
+                      <span className="royal-game-category">
+                        {game.category}
+                      </span>
+                    </div>
 
-                  <div className="royal-game-info">
-                    <h3>{game.name}</h3>
+                    <div className="royal-game-info">
+                      <h3>{game.name}</h3>
 
-                    <span className="royal-play-button">
-                      Play Now <ArrowRight size={13} />
-                    </span>
-                  </div>
-                </Link>
-              </article>
-            ))}
+                      <span className="royal-play-button">
+                        {actionLabel} <ArrowRight size={13} />
+                      </span>
+                    </div>
+                  </Link>
+                </article>
+              );
+            })}
           </div>
+
+          {!authLoading && !isLoggedIn && (
+            <div className="royal-home-login">
+              You must log in before playing any game.{" "}
+              <Link href="/login?next=%2Fcasino">
+                Log in now
+              </Link>
+            </div>
+          )}
+
+          {!authLoading &&
+            isLoggedIn &&
+            !hasMinimumBalance && (
+              <div className="royal-home-login">
+                Your current balance is{" "}
+                <strong>
+                  {Number.isFinite(balance)
+                    ? balance.toFixed(2)
+                    : "0.00"}{" "}
+                  USDT
+                </strong>
+                . A minimum balance of 50 USDT is required
+                to access games.{" "}
+                <Link href="/account">
+                  View funding options
+                </Link>
+              </div>
+            )}
         </section>
 
+        {/* BOTTOM ACCOUNT CTA */}
         <section className="royal-bottom-cta">
           <div className="royal-bottom-icon">
             <ShieldCheck size={19} />
@@ -248,16 +354,22 @@ export default function HomePage() {
               {authLoading
                 ? "Welcome to RoyalBet."
                 : isLoggedIn
-                  ? `Welcome back, ${user?.username || user?.name || "Player"}.`
+                  ? `Welcome back, ${
+                      user?.username ||
+                      user?.name ||
+                      "Player"
+                    }.`
                   : "Your Royal experience starts here."}
             </strong>
 
             <p>
               {authLoading
                 ? "Checking your account..."
-                : isLoggedIn
-                  ? "Your account is ready. Choose a game and get started."
-                  : "Create an account to access your player dashboard."}
+                : !isLoggedIn
+                  ? "Log in or create an account to continue."
+                  : !hasMinimumBalance
+                    ? "Contact our support team to fund your account and unlock games."
+                    : "Your account is ready. Choose an available game."}
             </p>
           </div>
 
@@ -272,27 +384,38 @@ export default function HomePage() {
                   My Account
                 </Link>
 
-                <Link
-                  href="/casino"
-                  className="royal-bottom-link"
-                >
-                  Play Now
-                </Link>
+                {hasMinimumBalance && (
+                  <Link
+                    href="/casino"
+                    className="royal-bottom-link"
+                  >
+                    Play Now
+                  </Link>
+                )}
               </div>
             ) : (
-              <Link
-                href="/register"
-                className="royal-bottom-link"
-              >
-                Create Account
-              </Link>
+              <div className="royal-home-account-actions">
+                <Link
+                  href="/login"
+                  className="royal-bottom-link"
+                >
+                  Log In
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="royal-bottom-link"
+                >
+                  Create Account
+                </Link>
+              </div>
             ))}
         </section>
 
         {!authLoading && !isLoggedIn && (
           <div className="royal-home-login">
-            Already have an account?{" "}
-            <Link href="/login">Log in</Link>
+            New to RoyalBet?{" "}
+            <Link href="/register">Create an account</Link>
           </div>
         )}
       </div>
