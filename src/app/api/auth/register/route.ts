@@ -20,10 +20,7 @@ export async function POST(request: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        {
-          error:
-            "Enter a valid username, email, and password of at least 6 characters.",
-        },
+        { error: "Enter a valid username, email, and password of at least 6 characters." },
         { status: 400 }
       );
     }
@@ -33,9 +30,7 @@ export async function POST(request: Request) {
     const password = parsed.data.password;
 
     const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
+      where: { OR: [{ email }, { username }] },
     });
 
     if (existingUser) {
@@ -52,13 +47,18 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
+    const configuredAdmin = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+
     const user = await prisma.user.create({
       data: {
         username,
         email,
         passwordHash,
-        role: "USER",
-        balance: 1000,
+        role:
+          configuredAdmin && email === configuredAdmin
+            ? "ADMIN"
+            : "USER",
+        balance: 0,
       },
     });
 
@@ -81,9 +81,7 @@ export async function POST(request: Request) {
     console.error("Registration error:", error);
 
     return NextResponse.json(
-      {
-        error: "Unable to create your account. Please try again.",
-      },
+      { error: "Unable to create your account. Please try again." },
       { status: 500 }
     );
   }
