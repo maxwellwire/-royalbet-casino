@@ -8,7 +8,14 @@ export default async function AviatorPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login?next=/casino/aviator");
+    redirect("/login?next=%2Fcasino%2Faviator");
+  }
+
+  if (
+    !Number.isFinite(Number(user.balance)) ||
+    Number(user.balance) < 50
+  ) {
+    redirect("/wallet?type=DEPOSIT&required=50");
   }
 
   return <RoyalGames game="aviator" />;
