@@ -8,7 +8,14 @@ export default async function SlotsPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login?next=/casino/slots");
+    redirect("/login?next=%2Fcasino%2Fslots");
+  }
+
+  if (
+    !Number.isFinite(Number(user.balance)) ||
+    Number(user.balance) < 50
+  ) {
+    redirect("/wallet?type=DEPOSIT&required=50");
   }
 
   return <RoyalGames game="slots" />;
