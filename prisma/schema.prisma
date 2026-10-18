@@ -68,3 +68,15 @@ model Transaction {
   @@index([userId, createdAt])
   @@index([status, createdAt])
 }
+model ActiveGame {
+  id        String   @id @default(cuid())
+  userId    String
+  game      String
+  state     Json
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, game, status])
+  @@index([createdAt])
+}
