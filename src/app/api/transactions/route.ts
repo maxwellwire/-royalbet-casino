@@ -8,16 +8,34 @@ export const runtime = "nodejs";
 
 const requestSchema = z.object({
   type: z.enum(["DEPOSIT", "WITHDRAWAL"]),
-  amount: z
+
+  amount: z.coerce
     .number()
-    .finite()
-    .positive()
-    .max(1000000),
-  note: z.string().trim().max(300).optional(),
+    .finite("Enter a valid amount.")
+    .positive("Amount must be greater than zero.")
+    .max(1_000_000, "The maximum request is 1,000,000 USDT."),
+
+  note: z.preprocess(
+    (value) => {
+      if (value === undefined || value === null) {
+        return "";
+      }
+
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      return value.trim();
+    },
+    z.string().max(300, "Your note must be 300 characters or fewer.")
+  ),
 });
 
 function errorResponse(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
+  return NextResponse.json(
+    { error: message },
+    { status }
+  );
 }
 
 export async function GET() {
@@ -25,17 +43,22 @@ export async function GET() {
     const user = await getCurrentUser();
 
     if (!user) {
-      return errorResponse("Please log in.", 401);
+      return errorResponse("Please log in to continue.", 401);
     }
 
     const transactions = await prisma.transaction.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
+      where: {
+        userId: user.id,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
       take: 50,
     });
 
     return NextResponse.json({
       balance: Number(user.balance),
+
       transactions: transactions.map((transaction) => ({
         id: transaction.id,
         type: transaction.type,
@@ -50,7 +73,7 @@ export async function GET() {
     console.error("Transaction history error:", error);
 
     return errorResponse(
-      "Unable to load your transaction history. Please try again.",
+      "Unable to load transaction history. Please try again.",
       500
     );
   }
@@ -61,7 +84,7 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
 
     if (!user) {
-      return errorResponse("Please log in.", 401);
+      return errorResponse("Please log in to continue.", 401);
     }
 
     let body: unknown;
@@ -69,14 +92,19 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return errorResponse("The request contains invalid JSON.", 400);
+      return errorResponse(
+        "Invalid request. Please refresh the page and try again.",
+        400
+      );
     }
 
     const parsed = requestSchema.safeParse(body);
 
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0];
+
       return errorResponse(
-        "Enter a valid request type and an amount greater than zero, up to 1,000,000.",
+        firstIssue?.message ?? "Please check your transaction details.",
         400
       );
     }
@@ -88,7 +116,7 @@ export async function POST(request: Request) {
 
       if (!Number.isFinite(balance) || balance < amount) {
         return errorResponse(
-          "Your available USDT balance is too low for this request.",
+          "Your available USDT balance is insufficient for this withdrawal request.",
           400
         );
       }
@@ -107,7 +135,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message:
-          "Request submitted. Contact the RoyalBet admin on Telegram and wait for review.",
+          "Your request has been submitted for administrator review. Contact RoyalBet Payments on Telegram for assistance.",
+
         transaction: {
           id: transaction.id,
           type: transaction.type,
@@ -115,13 +144,15 @@ export async function POST(request: Request) {
           status: transaction.status,
         },
       },
-      { status: 201 }
+      {
+        status: 201,
+      }
     );
   } catch (error) {
     console.error("Transaction request error:", error);
 
     return errorResponse(
-      "Unable to submit your transaction request. Please try again.",
+      "Unable to submit your request right now. Please try again.",
       500
     );
   }
