@@ -17,7 +17,6 @@ model User {
   balance      Decimal       @default(0) @db.Decimal(18, 2)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-
   sessions     Session[]
   gameHistory  GameHistory[]
   transactions Transaction[]
@@ -29,8 +28,7 @@ model Session {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -44,8 +42,7 @@ model GameHistory {
   payout    Decimal  @default(0) @db.Decimal(18, 2)
   result    String
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
@@ -57,13 +54,12 @@ model Transaction {
   type       String
   amount     Decimal  @db.Decimal(18, 2)
   status     String   @default("PENDING")
-  reference  String?  @unique
+  reference  String?
   note       String?
   reviewedBy String?
   reviewedAt DateTime?
   createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
