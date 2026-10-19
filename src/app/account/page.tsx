@@ -12,6 +12,18 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const TELEGRAM_URL = "https://t.me/RoyalBetPayments";
+
+const DEPOSIT_URL =
+  `${TELEGRAM_URL}?text=${encodeURIComponent(
+    "Hi\nI want to deposit and claim the 200% bonus"
+  )}`;
+
+const WITHDRAW_URL =
+  `${TELEGRAM_URL}?text=${encodeURIComponent(
+    "Hi\nI want to withdraw my funds"
+  )}`;
+
 export default async function AccountPage() {
   const user = await getCurrentUser();
 
@@ -48,7 +60,7 @@ export default async function AccountPage() {
       </section>
 
       <section className="account-grid">
-        {/* BALANCE AND WALLET ACTIONS */}
+        {/* KEEP THESE TWO BUTTONS ON THE ACCOUNT PAGE */}
         <article className="balance-card">
           <span>USDT BALANCE</span>
 
@@ -59,26 +71,28 @@ export default async function AccountPage() {
           <small>Account balance</small>
 
           <div className="account-balance-actions">
-            <Link
-              href="/wallet?type=DEPOSIT"
+            <a
+              href={DEPOSIT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="button button-gold"
             >
               <ArrowDownToLine size={17} />
               Deposit
-            </Link>
+            </a>
 
-            <Link
-              href="/wallet?type=WITHDRAWAL"
+            <a
+              href={WITHDRAW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="button button-outline"
             >
               <ArrowUpFromLine size={17} />
               Withdraw
-            </Link>
+            </a>
           </div>
         </article>
       </section>
-
-      {/* DICE GAME CARD REMOVED FROM ACCOUNT PAGE */}
 
       <section className="section">
         <div className="section-heading">
