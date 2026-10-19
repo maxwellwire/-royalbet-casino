@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ShieldCheck,
-  Wallet,
 } from "lucide-react";
 
 type GameType = "aviator" | "slots" | "mines";
@@ -79,14 +78,6 @@ export default function RoyalGames({
           >
             <ArrowLeft size={16} />
             Back to casino
-          </Link>
-
-          <Link
-            href="/wallet?type=DEPOSIT"
-            className="button button-gold"
-          >
-            <Wallet size={16} />
-            Open wallet
           </Link>
         </div>
       </section>
