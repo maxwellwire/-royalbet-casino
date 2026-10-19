@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 
-const SUPPORT_URL = "https://t.me/RoyalBetPayments";
+const TELEGRAM_DEPOSIT_URL =
+  "https://t.me/RoyalBetPayments?text=Hi%0AI%20want%20to%20deposit%20and%20claim%20the%20200%25%20bonus";
+
+const TELEGRAM_SUPPORT_URL = "https://t.me/RoyalBetPayments";
 
 export default function WalletPage() {
   return (
@@ -25,7 +28,7 @@ export default function WalletPage() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-gray-400">
-            Need to deposit or withdraw? Contact our support team directly.
+            Manage your deposits and withdrawals through RoyalBet support.
           </p>
         </div>
 
@@ -36,14 +39,15 @@ export default function WalletPage() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-gray-400">
-              All deposits and withdrawals are handled through RoyalBet
-              Payments support. Select an option below to contact our team.
+              Click Deposit to contact our team on Telegram and request your
+              deposit with the 200% bonus.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* DEPOSIT */}
             <a
-              href={SUPPORT_URL}
+              href={TELEGRAM_DEPOSIT_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex min-h-32 flex-col justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 transition hover:border-emerald-400 hover:bg-emerald-500/20"
@@ -53,16 +57,17 @@ export default function WalletPage() {
               </span>
 
               <span className="mt-2 text-sm text-gray-300">
-                Contact support to request a deposit.
+                Deposit and claim your 200% bonus.
               </span>
 
               <span className="mt-4 text-sm font-semibold text-white">
-                Contact Support →
+                Continue on Telegram →
               </span>
             </a>
 
+            {/* WITHDRAW */}
             <a
-              href={SUPPORT_URL}
+              href={TELEGRAM_SUPPORT_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex min-h-32 flex-col justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 transition hover:border-yellow-400 hover:bg-yellow-500/20"
@@ -81,18 +86,9 @@ export default function WalletPage() {
             </a>
           </div>
 
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 font-bold text-black transition hover:bg-emerald-400"
-          >
-            Open RoyalBet Payments on Telegram
-          </a>
-
-          <p className="mt-4 text-center text-xs leading-5 text-gray-500">
-            Contact support for assistance with your wallet. Deposits and
-            withdrawals are subject to verification and approval.
+          <p className="mt-6 text-center text-xs leading-5 text-gray-500">
+            Deposits and withdrawals are subject to verification and approval.
+            Contact official support for assistance.
           </p>
         </div>
       </div>
