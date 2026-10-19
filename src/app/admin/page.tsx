@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Gift, RefreshCw, ShieldCheck } from "lucide-react";
+import { RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 
 type Transaction = {
   id: string;
@@ -19,6 +19,7 @@ type Transaction = {
 
 type User = {
   id: string;
+  name: string | null;
   username: string | null;
   email: string;
   role: string;
@@ -30,8 +31,9 @@ export default function AdminPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState("");
+  const [search, setSearch] = useState("");
   const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("Community giveaway reward");
+  const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -51,29 +53,111 @@ export default function AdminPage() {
       const userData = await userResponse.json();
 
       if (!transactionResponse.ok) {
-        throw new Error(transactionData.error || "Admin access required.");
+        throw new Error(
+          transactionData.error || "Unable to load transactions."
+        );
       }
 
       if (!userResponse.ok) {
-        throw new Error(userData.error || "Could not load users.");
+        throw new Error(userData.error || "Unable to load users.");
       }
 
       setTransactions(transactionData.transactions || []);
       setUsers(userData.users || []);
 
-      if (!userId && userData.users?.length) {
-        setUserId(userData.users[0].id);
-      }
+      setUserId((currentId) => {
+        if (userData.users?.some((user: User) => user.id === currentId)) {
+          return currentId;
+        }
+
+        return userData.users?.[0]?.id || "";
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load admin panel.");
+      setError(
+        err instanceof Error ? err.message : "Unable to load admin dashboard."
+      );
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const selectedUser = users.find((user) => user.id === userId);
+
+  const filteredUsers = users.filter((user) => {
+    const query = search.trim().toLowerCase();
+
+    return (
+      !query ||
+      user.email.toLowerCase().includes(query) ||
+      (user.username || "").toLowerCase().includes(query) ||
+      user.id.toLowerCase().includes(query)
+    );
+  });
+
+  async function fundAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!userId) {
+      setError("Select a registered user first.");
+      return;
+    }
+
+    const numericAmount = Number(amount);
+
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0 ||
+      numericAmount > 1_000_000 ||
+      Math.round(numericAmount * 100) !== numericAmount * 100
+    ) {
+      setError("Enter a valid amount between 0.01 and 1,000,000 USDT.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Credit ${numericAmount.toFixed(2)} USDT to ${selectedUser?.email}?`
+    );
+
+    if (!confirmed) return;
+
+    setBusy("fund");
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          amount: numericAmount,
+          note: note.trim() || "Admin account funding",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to fund account.");
+      }
+
+      setMessage(data.message || "Account funded successfully.");
+      setAmount("");
+      setNote("");
+
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to fund this account."
+      );
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function review(id: string, action: "APPROVE" | "REJECT") {
     setBusy(id);
@@ -93,43 +177,10 @@ export default function AdminPage() {
         throw new Error(data.error || "Review failed.");
       }
 
-      setMessage(data.message);
+      setMessage(data.message || "Transaction reviewed.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function reward(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy("reward");
-    setMessage("");
-    setError("");
-
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          amount: Number(amount),
-          note,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to credit reward.");
-      }
-
-      setMessage(data.message);
-      setAmount("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to credit reward.");
     } finally {
       setBusy("");
     }
@@ -141,51 +192,83 @@ export default function AdminPage() {
         <div className="eyebrow">
           <ShieldCheck size={15} /> ADMIN CONTROL
         </div>
+
         <h1>
           ROYALBET <span className="gold-text">ADMIN</span>
         </h1>
-        <p>Review requests and issue community giveaway rewards.</p>
+
+        <p>Manage registered users and fund their account balances.</p>
       </div>
 
-      {error && <p role="alert" style={{ color: "#ff8f8f" }}>{error}</p>}
-      {message && <p role="status" style={{ color: "#9de0ad" }}>{message}</p>}
+      {error && (
+        <p role="alert" style={{ color: "#ff8f8f", marginBottom: 16 }}>
+          {error}
+        </p>
+      )}
+
+      {message && (
+        <p role="status" style={{ color: "#9de0ad", marginBottom: 16 }}>
+          {message}
+        </p>
+      )}
 
       <section className="section" style={{ marginBottom: 28 }}>
         <div className="section-heading">
           <div>
-            <div className="eyebrow"><Gift size={15} /> COMMUNITY REWARDS</div>
-            <h2>Credit a USDT giveaway</h2>
+            <div className="eyebrow">
+              <Wallet size={15} /> ACCOUNT MANAGEMENT
+            </div>
+            <h2>Fund a User Account</h2>
           </div>
         </div>
 
         <form
-          onSubmit={reward}
+          onSubmit={fundAccount}
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
-            gap: 12,
+            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+            gap: 16,
             alignItems: "end",
           }}
         >
           <label>
-            Choose user
-            <select value={userId} onChange={(event) => setUserId(event.target.value)} required style={inputStyle}>
-              <option value="">Select user</option>
-              {users.map((user) => (
+            Search registered users
+            <input
+              style={inputStyle}
+              type="search"
+              placeholder="Search email, username or ID"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+
+          <label>
+            Select user
+            <select
+              value={userId}
+              onChange={(event) => setUserId(event.target.value)}
+              required
+              style={inputStyle}
+            >
+              <option value="">Select a registered user</option>
+
+              {filteredUsers.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.username || user.email} — {user.balance.toFixed(2)} USDT
+                  {user.email} — {user.balance.toFixed(2)} USDT
                 </option>
               ))}
             </select>
           </label>
 
           <label>
-            Reward amount (USDT)
+            Amount to add (USDT)
             <input
               style={inputStyle}
               type="number"
               min="0.01"
+              max="1000000"
               step="0.01"
+              placeholder="Enter amount"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               required
@@ -193,46 +276,144 @@ export default function AdminPage() {
           </label>
 
           <label>
-            Reason
+            Funding note (optional)
             <input
               style={inputStyle}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              minLength={3}
               maxLength={300}
-              required
+              placeholder="Account funding"
             />
           </label>
 
-          <button className="button button-gold" disabled={busy === "reward" || !users.length}>
-            {busy === "reward" ? "Crediting..." : "Credit giveaway"}
+          <button
+            className="button button-gold"
+            type="submit"
+            disabled={Boolean(busy) || !users.length || !userId}
+          >
+            {busy === "fund" ? "Funding Account..." : "Fund Account"}
           </button>
         </form>
 
-        <p style={{ fontSize: 13, opacity: 0.75 }}>
-          Each reward updates the user's recorded balance and creates a GIVEAWAY
-          transaction record.
+        {selectedUser && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 16,
+              borderRadius: 10,
+              background: "rgba(255,255,255,.04)",
+              overflowWrap: "anywhere",
+            }}
+          >
+            <p>
+              <strong>Selected email:</strong> {selectedUser.email}
+            </p>
+            <p style={{ marginTop: 6 }}>
+              <strong>User ID:</strong> {selectedUser.id}
+            </p>
+            <p style={{ marginTop: 6 }}>
+              <strong>Current balance:</strong>{" "}
+              {selectedUser.balance.toFixed(2)} USDT
+            </p>
+            <p style={{ marginTop: 6 }}>
+              <strong>Balance after funding:</strong>{" "}
+              {(
+                selectedUser.balance + (Number(amount) || 0)
+              ).toFixed(2)}{" "}
+              USDT
+            </p>
+          </div>
+        )}
+
+        <p style={{ fontSize: 13, opacity: 0.75, marginTop: 14 }}>
+          Funding increases the selected user&apos;s existing recorded balance
+          and creates an ADMIN_CREDIT transaction.
         </p>
       </section>
 
-      <section className="section">
+      <section className="section" style={{ marginBottom: 28 }}>
         <div className="section-heading">
           <div>
-            <div className="eyebrow">REQUEST QUEUE</div>
-            <h2>Deposits & withdrawals</h2>
+            <div className="eyebrow">REGISTERED ACCOUNTS</div>
+            <h2>All Users ({users.length})</h2>
           </div>
 
-          <button className="button button-outline" onClick={() => void load()} type="button">
+          <button
+            className="button button-outline"
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+          >
             <RefreshCw size={15} /> Refresh
           </button>
         </div>
 
         {loading ? (
-          <p>Loading admin data...</p>
+          <p>Loading registered users...</p>
+        ) : users.length === 0 ? (
+          <div className="empty-state">
+            <h3>No registered users found</h3>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Username</th>
+                  <th>User ID</th>
+                  <th>Balance</th>
+                  <th>Registered</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.email}</td>
+                    <td>{user.username || "—"}</td>
+                    <td style={{ overflowWrap: "anywhere" }}>{user.id}</td>
+                    <td>{user.balance.toFixed(2)} USDT</td>
+                    <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <button
+                        className="button button-gold"
+                        type="button"
+                        onClick={() => {
+                          setUserId(user.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        Select User
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredUsers.length === 0 && (
+              <p style={{ padding: 16 }}>No users match your search.</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="section">
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">TRANSACTION MANAGEMENT</div>
+            <h2>Deposits & Withdrawals</h2>
+          </div>
+        </div>
+
+        {loading ? (
+          <p>Loading transactions...</p>
         ) : transactions.length === 0 ? (
           <div className="empty-state">
             <h3>No transaction requests</h3>
-            <p>Requests will appear here when users submit them.</p>
+            <p>Existing requests will appear here.</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -242,7 +423,7 @@ export default function AdminPage() {
                   <th>User</th>
                   <th>Type</th>
                   <th>Amount</th>
-                  <th>Current balance</th>
+                  <th>Balance</th>
                   <th>Status</th>
                   <th>Note</th>
                   <th>Requested</th>
@@ -269,16 +450,22 @@ export default function AdminPage() {
                         <div style={{ display: "flex", gap: 6 }}>
                           <button
                             className="button button-gold"
+                            type="button"
                             disabled={Boolean(busy)}
-                            onClick={() => void review(transaction.id, "APPROVE")}
+                            onClick={() =>
+                              void review(transaction.id, "APPROVE")
+                            }
                           >
                             {busy === transaction.id ? "..." : "Approve"}
                           </button>
 
                           <button
                             className="button button-outline"
+                            type="button"
                             disabled={Boolean(busy)}
-                            onClick={() => void review(transaction.id, "REJECT")}
+                            onClick={() =>
+                              void review(transaction.id, "REJECT")
+                            }
                           >
                             Reject
                           </button>
