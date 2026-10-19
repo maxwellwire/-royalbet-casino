@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -15,6 +17,7 @@ async function getAdmin() {
   return user?.role === "ADMIN" ? user : null;
 }
 
+// GET: List registered accounts for the admin dashboard.
 export async function GET() {
   try {
     const admin = await getAdmin();
@@ -44,16 +47,30 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Admin user list error:", error);
-    return errorResponse("Unable to load registered users.", 500);
+
+    return errorResponse(
+      "Unable to load registered users. Check the server logs.",
+      500
+    );
   }
 }
 
 const creditSchema = z.object({
-  userId: z.string().min(1),
-  amount: z.coerce.number().finite().positive().max(1_000_000),
-  note: z.string().trim().max(300).optional().default(""),
+  userId: z.string().trim().min(1, "Select a registered user."),
+  amount: z.coerce
+    .number()
+    .finite()
+    .positive("The amount must be greater than zero.")
+    .max(1_000_000, "The maximum funding amount is 1,000,000 USDT."),
+  note: z
+    .string()
+    .trim()
+    .max(300, "The funding note cannot exceed 300 characters.")
+    .optional()
+    .default(""),
 });
 
+// POST: Credit a user's existing balance and record the transaction.
 export async function POST(request: Request) {
   try {
     const admin = await getAdmin();
@@ -75,7 +92,7 @@ export async function POST(request: Request) {
 
     const { userId, amount, note } = parsed.data;
 
-    // The database stores balances to two decimal places.
+    // Reject amounts that cannot be represented to two decimal places.
     if (Math.round(amount * 100) !== amount * 100) {
       return errorResponse(
         "The funding amount cannot have more than two decimal places.",
@@ -83,45 +100,96 @@ export async function POST(request: Request) {
       );
     }
 
+    // Convert the amount to a fixed two-decimal representation.
+    const amountDecimal = amount.toFixed(2);
+
     const targetUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: {
+        id: true,
+        email: true,
+      },
     });
 
     if (!targetUser) {
       return errorResponse("The selected user does not exist.", 404);
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
+    const reference = `ADMIN-${randomUUID()}`;
+
+    // Both operations must succeed together.
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
         where: { id: targetUser.id },
         data: {
-          balance: { increment: amount },
+          balance: {
+            increment: amountDecimal,
+          },
+        },
+        select: {
+          id: true,
+          email: true,
+          balance: true,
         },
       });
 
-      await tx.transaction.create({
+      const transaction = await tx.transaction.create({
         data: {
           userId: targetUser.id,
           type: "ADMIN_CREDIT",
-          amount,
+          amount: amountDecimal,
           status: "APPROVED",
+          reference,
           note: note || "Admin account funding",
-          reference: `ADMIN-${crypto.randomUUID()}`,
           reviewedBy: admin.id,
           reviewedAt: new Date(),
         },
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          status: true,
+          reference: true,
+          createdAt: true,
+        },
       });
+
+      return {
+        user: updatedUser,
+        transaction,
+      };
+    });
+
+    console.info("Admin account credit completed:", {
+      adminId: admin.id,
+      userId: result.user.id,
+      amount: amountDecimal,
+      transactionId: result.transaction.id,
+      reference,
     });
 
     return NextResponse.json(
       {
-        message: `${amount.toFixed(2)} USDT credited to ${targetUser.email}.`,
+        message: `${amountDecimal} USDT credited to ${result.user.email}.`,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          balance: Number(result.user.balance),
+        },
+        transaction: {
+          ...result.transaction,
+          amount: Number(result.transaction.amount),
+        },
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("Admin account funding error:", error);
-    return errorResponse("Unable to fund this account. Please try again.", 500);
+
+    // Keep internal database details out of the public response.
+    return errorResponse(
+      "Account funding failed. Check the Vercel server logs for the exact cause.",
+      500
+    );
   }
 }
