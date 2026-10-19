@@ -57,7 +57,7 @@ model Transaction {
   type       String
   amount     Decimal  @db.Decimal(18, 2)
   status     String   @default("PENDING")
-  reference  String?
+  reference  String?  @unique
   note       String?
   reviewedBy String?
   reviewedAt DateTime?
@@ -68,6 +68,7 @@ model Transaction {
   @@index([userId, createdAt])
   @@index([status, createdAt])
 }
+
 model ActiveGame {
   id        String   @id @default(cuid())
   userId    String
