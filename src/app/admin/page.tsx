@@ -1,8 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, CSSProperties } from "react";
 import { RefreshCw, ShieldCheck, Wallet } from "lucide-react";
+
+type User = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  email: string;
+  role: string;
+  balance: number;
+  createdAt: string;
+};
 
 type Transaction = {
   id: string;
@@ -17,40 +27,92 @@ type Transaction = {
   createdAt: string;
 };
 
-type User = {
-  id: string;
-  name: string | null;
-  username: string | null;
-  email: string;
-  role: string;
-  balance: number;
-  createdAt: string;
+const inputStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  minWidth: 0,
+  marginTop: 7,
+  padding: 12,
+  border: "1px solid rgba(255,255,255,.15)",
+  borderRadius: 9,
+  background: "#101511",
+  color: "#fff",
+  font: "inherit",
 };
 
+async function readJson(response: Response): Promise<any> {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
 export default function AdminPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [userId, setUserId] = useState("");
   const [search, setSearch] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [transactionError, setTransactionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setTransactionError("");
 
     try {
-      const [transactionResponse, userResponse] = await Promise.all([
-        fetch("/api/admin/transactions", { cache: "no-store" }),
-        fetch("/api/admin/users", { cache: "no-store" }),
-      ]);
+      // Load registered users independently.
+      const userResponse = await fetch("/api/admin/users", {
+        cache: "no-store",
+      });
 
-      const transactionData = await transactionResponse.json();
-      const userData = await userResponse.json();
+      const userData = await readJson(userResponse);
+
+      if (!userResponse.ok) {
+        throw new Error(
+          userData.error || "Unable to load registered users."
+        );
+      }
+
+      const loadedUsers: User[] = Array.isArray(userData.users)
+        ? userData.users.map((user: User) => ({
+            ...user,
+            balance: Number(user.balance) || 0,
+          }))
+        : [];
+
+      setUsers(loadedUsers);
+
+      setUserId((currentId) => {
+        if (loadedUsers.some((user) => user.id === currentId)) {
+          return currentId;
+        }
+
+        return loadedUsers[0]?.id || "";
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load registered users."
+      );
+    }
+
+    // Load transactions separately so a transaction error
+    // cannot prevent registered users from being displayed.
+    try {
+      const transactionResponse = await fetch(
+        "/api/admin/transactions",
+        { cache: "no-store" }
+      );
+
+      const transactionData = await readJson(transactionResponse);
 
       if (!transactionResponse.ok) {
         throw new Error(
@@ -58,24 +120,26 @@ export default function AdminPage() {
         );
       }
 
-      if (!userResponse.ok) {
-        throw new Error(userData.error || "Unable to load users.");
-      }
+      const loadedTransactions: Transaction[] = Array.isArray(
+        transactionData.transactions
+      )
+        ? transactionData.transactions.map(
+            (transaction: Transaction) => ({
+              ...transaction,
+              amount: Number(transaction.amount) || 0,
+              balance: Number(transaction.balance) || 0,
+            })
+          )
+        : [];
 
-      setTransactions(transactionData.transactions || []);
-      setUsers(userData.users || []);
-
-      setUserId((currentId) => {
-        if (userData.users?.some((user: User) => user.id === currentId)) {
-          return currentId;
-        }
-
-        return userData.users?.[0]?.id || "";
-      });
+      setTransactions(loadedTransactions);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to load admin dashboard."
+      setTransactionError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load transactions."
       );
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -101,8 +165,11 @@ export default function AdminPage() {
   async function fundAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!userId) {
-      setError("Select a registered user first.");
+    setError("");
+    setMessage("");
+
+    if (!userId || !selectedUser) {
+      setError("Please select a registered user.");
       return;
     }
 
@@ -119,19 +186,21 @@ export default function AdminPage() {
     }
 
     const confirmed = window.confirm(
-      `Credit ${numericAmount.toFixed(2)} USDT to ${selectedUser?.email}?`
+      `Credit ${numericAmount.toFixed(2)} USDT to ${selectedUser.email}?\n\n` +
+        `Current balance: ${selectedUser.balance.toFixed(2)} USDT\n` +
+        `New balance: ${(selectedUser.balance + numericAmount).toFixed(2)} USDT`
     );
 
     if (!confirmed) return;
 
     setBusy("fund");
-    setError("");
-    setMessage("");
 
     try {
       const response = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           userId,
           amount: numericAmount,
@@ -139,55 +208,79 @@ export default function AdminPage() {
         }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to fund account.");
+        throw new Error(data.error || "Unable to fund this account.");
       }
 
-      setMessage(data.message || "Account funded successfully.");
+      setMessage(
+        data.message || "Account balance credited successfully."
+      );
+
       setAmount("");
       setNote("");
 
       await load();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to fund this account."
+        err instanceof Error
+          ? err.message
+          : "Unable to fund this account."
       );
     } finally {
       setBusy("");
     }
   }
 
-  async function review(id: string, action: "APPROVE" | "REJECT") {
+  async function review(
+    id: string,
+    action: "APPROVE" | "REJECT"
+  ) {
+    const confirmed = window.confirm(
+      `Are you sure you want to ${action.toLowerCase()} this transaction?`
+    );
+
+    if (!confirmed) return;
+
     setBusy(id);
-    setMessage("");
     setError("");
+    setMessage("");
 
     try {
       const response = await fetch("/api/admin/transactions", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ id, action }),
       });
 
-      const data = await response.json();
+      const data = await readJson(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Review failed.");
+        throw new Error(data.error || "Transaction review failed.");
       }
 
-      setMessage(data.message || "Transaction reviewed.");
+      setMessage(data.message || "Transaction reviewed successfully.");
+
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Review failed.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Transaction review failed."
+      );
     } finally {
       setBusy("");
     }
   }
 
   return (
-    <main className="page-container" style={{ maxWidth: 1200, minHeight: "70vh" }}>
+    <main
+      className="page-container"
+      style={{ maxWidth: 1200, minHeight: "70vh" }}
+    >
       <div className="page-heading">
         <div className="eyebrow">
           <ShieldCheck size={15} /> ADMIN CONTROL
@@ -201,13 +294,19 @@ export default function AdminPage() {
       </div>
 
       {error && (
-        <p role="alert" style={{ color: "#ff8f8f", marginBottom: 16 }}>
+        <p
+          role="alert"
+          style={{ color: "#ff8f8f", marginBottom: 16 }}
+        >
           {error}
         </p>
       )}
 
       {message && (
-        <p role="status" style={{ color: "#9de0ad", marginBottom: 16 }}>
+        <p
+          role="status"
+          style={{ color: "#9de0ad", marginBottom: 16 }}
+        >
           {message}
         </p>
       )}
@@ -226,7 +325,8 @@ export default function AdminPage() {
           onSubmit={fundAccount}
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
             alignItems: "end",
           }}
@@ -308,13 +408,21 @@ export default function AdminPage() {
             <p>
               <strong>Selected email:</strong> {selectedUser.email}
             </p>
+
+            <p style={{ marginTop: 6 }}>
+              <strong>Username:</strong>{" "}
+              {selectedUser.username || "—"}
+            </p>
+
             <p style={{ marginTop: 6 }}>
               <strong>User ID:</strong> {selectedUser.id}
             </p>
+
             <p style={{ marginTop: 6 }}>
               <strong>Current balance:</strong>{" "}
               {selectedUser.balance.toFixed(2)} USDT
             </p>
+
             <p style={{ marginTop: 6 }}>
               <strong>Balance after funding:</strong>{" "}
               {(
@@ -326,8 +434,10 @@ export default function AdminPage() {
         )}
 
         <p style={{ fontSize: 13, opacity: 0.75, marginTop: 14 }}>
-          Funding increases the selected user&apos;s existing recorded balance
-          and creates an ADMIN_CREDIT transaction.
+          Funding increases the selected user&apos;s existing recorded
+          balance and creates an ADMIN_CREDIT transaction. This updates
+          the website&apos;s database balance; it does not send an
+          on-chain USDT transfer.
         </p>
       </section>
 
@@ -344,15 +454,17 @@ export default function AdminPage() {
             onClick={() => void load()}
             disabled={loading}
           >
-            <RefreshCw size={15} /> Refresh
+            <RefreshCw size={15} />{" "}
+            {loading ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-        {loading ? (
+        {loading && users.length === 0 ? (
           <p>Loading registered users...</p>
         ) : users.length === 0 ? (
           <div className="empty-state">
             <h3>No registered users found</h3>
+            {error && <p>Check the error message above.</p>}
           </div>
         ) : (
           <div className="table-wrap">
@@ -362,6 +474,7 @@ export default function AdminPage() {
                   <th>Email</th>
                   <th>Username</th>
                   <th>User ID</th>
+                  <th>Role</th>
                   <th>Balance</th>
                   <th>Registered</th>
                   <th>Action</th>
@@ -373,16 +486,24 @@ export default function AdminPage() {
                   <tr key={user.id}>
                     <td>{user.email}</td>
                     <td>{user.username || "—"}</td>
-                    <td style={{ overflowWrap: "anywhere" }}>{user.id}</td>
+                    <td style={{ overflowWrap: "anywhere" }}>
+                      {user.id}
+                    </td>
+                    <td>{user.role}</td>
                     <td>{user.balance.toFixed(2)} USDT</td>
-                    <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
                     <td>
                       <button
                         className="button button-gold"
                         type="button"
                         onClick={() => {
                           setUserId(user.id);
-                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          window.scrollTo({
+                            top: 0,
+                            behavior: "smooth",
+                          });
                         }}
                       >
                         Select User
@@ -394,7 +515,9 @@ export default function AdminPage() {
             </table>
 
             {filteredUsers.length === 0 && (
-              <p style={{ padding: 16 }}>No users match your search.</p>
+              <p style={{ padding: 16 }}>
+                No users match your search.
+              </p>
             )}
           </div>
         )}
@@ -407,6 +530,15 @@ export default function AdminPage() {
             <h2>Deposits & Withdrawals</h2>
           </div>
         </div>
+
+        {transactionError && (
+          <p
+            role="alert"
+            style={{ color: "#ff8f8f", marginBottom: 16 }}
+          >
+            {transactionError}
+          </p>
+        )}
 
         {loading ? (
           <p>Loading transactions...</p>
@@ -439,15 +571,27 @@ export default function AdminPage() {
                       <br />
                       <small>{transaction.email}</small>
                     </td>
+
                     <td>{transaction.type}</td>
                     <td>{transaction.amount.toFixed(2)} USDT</td>
                     <td>{transaction.balance.toFixed(2)} USDT</td>
                     <td>{transaction.status}</td>
                     <td>{transaction.note || "—"}</td>
-                    <td>{new Date(transaction.createdAt).toLocaleString()}</td>
+                    <td>
+                      {new Date(
+                        transaction.createdAt
+                      ).toLocaleString()}
+                    </td>
+
                     <td>
                       {transaction.status === "PENDING" ? (
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
                           <button
                             className="button button-gold"
                             type="button"
@@ -456,7 +600,9 @@ export default function AdminPage() {
                               void review(transaction.id, "APPROVE")
                             }
                           >
-                            {busy === transaction.id ? "..." : "Approve"}
+                            {busy === transaction.id
+                              ? "Processing..."
+                              : "Approve"}
                           </button>
 
                           <button
@@ -484,16 +630,3 @@ export default function AdminPage() {
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  minWidth: 0,
-  marginTop: 7,
-  padding: 12,
-  border: "1px solid rgba(255,255,255,.15)",
-  borderRadius: 9,
-  background: "#101511",
-  color: "#fff",
-  font: "inherit",
-};
