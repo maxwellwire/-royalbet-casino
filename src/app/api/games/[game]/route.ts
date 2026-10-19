@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { randomInt } from "node:crypto";
+
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -8,18 +10,22 @@ export const dynamic = "force-dynamic";
 
 type State = Record<string, any>;
 
-const money = (n: number) => Math.round(n * 100) / 100;
+const MINIMUM_BALANCE = 10;
+const MAXIMUM_BET = 1000;
+
+const money = (value: number) =>
+  Math.round((value + Number.EPSILON) * 100) / 100;
 
 const response = (body: object, status = 200) =>
   NextResponse.json(body, { status });
 
-function validAmount(value: unknown) {
+function validAmount(value: unknown): number | null {
   const amount = Number(value);
 
   if (
     !Number.isFinite(amount) ||
     amount < 1 ||
-    amount > 1000 ||
+    amount > MAXIMUM_BET ||
     Math.round(amount * 100) !== amount * 100
   ) {
     return null;
@@ -28,22 +34,7 @@ function validAmount(value: unknown) {
   return amount;
 }
 
-async function getAuthenticatedUser() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return {
-      error: response(
-        { error: "Please log in to play." },
-        401
-      ),
-    };
-  }
-
-  return { user };
-}
-
-function generateCrashMultiplier() {
+function generateCrashMultiplier(): number {
   const random = Math.random();
 
   return Math.max(
@@ -58,18 +49,75 @@ function generateCrashMultiplier() {
 function calculateMinesMultiplier(
   safePicks: number,
   mineCount: number
-) {
+): number {
   let probability = 1;
 
   for (let i = 0; i < safePicks; i++) {
-    probability *=
-      (25 - mineCount - i) / (25 - i);
+    probability *= (25 - mineCount - i) / (25 - i);
   }
 
-  return Math.max(
-    1,
-    Math.floor((0.97 / probability) * 100) / 100
+  if (probability <= 0) return 100;
+
+  return Math.min(
+    100,
+    Math.max(
+      1,
+      Math.floor((0.97 / probability) * 100) / 100
+    )
   );
+}
+
+function shuffledTiles(): number[] {
+  const tiles = Array.from({ length: 25 }, (_, index) => index);
+
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+
+  return tiles;
+}
+
+async function getAuthenticatedUser() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return {
+      user: null,
+      error: response({ error: "Please log in to play." }, 401),
+    };
+  }
+
+  return { user, error: null };
+}
+
+async function debitBet(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  bet: number
+) {
+  const debit = await tx.user.updateMany({
+    where: {
+      id: userId,
+      balance: { gte: bet },
+    },
+    data: {
+      balance: { decrement: bet },
+    },
+  });
+
+  if (debit.count !== 1) {
+    throw new Error("INSUFFICIENT");
+  }
+}
+
+async function getFreshBalance(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { balance: true },
+  });
+
+  return Number(user?.balance ?? 0);
 }
 
 export async function POST(
@@ -84,36 +132,42 @@ export async function POST(
 
   const auth = await getAuthenticatedUser();
 
-  if (auth.error) {
-    return auth.error;
+  if (auth.error || !auth.user) {
+    return auth.error!;
   }
 
-  const user = auth.user!;
+  const user = auth.user;
 
   let body: State;
 
   try {
     body = await request.json();
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return response({ error: "Invalid request body." }, 400);
+    }
   } catch {
     return response({ error: "Invalid request." }, 400);
   }
 
-  const action = String(body.action || "");
-  const balance = Number(user.balance);
+  const action = String(body.action ?? "");
 
-  // The minimum balance is required when starting a round.
-  if (
-    ["start", "spin"].includes(action) &&
-    (!Number.isFinite(balance) || balance < 50)
-  ) {
-    return response(
-      {
-        error:
-          "You need at least 50 USDT in your account to start a game.",
-        requiredBalance: 50,
-      },
-      403
-    );
+  /*
+   * Require a minimum balance when starting a round.
+   * The bet itself must also be affordable.
+   */
+  if (["start", "spin"].includes(action)) {
+    const balance = Number(user.balance);
+
+    if (!Number.isFinite(balance) || balance < MINIMUM_BALANCE) {
+      return response(
+        {
+          error: "You need at least 10 USDT in your account to start a game.",
+          requiredBalance: MINIMUM_BALANCE,
+        },
+        403
+      );
+    }
   }
 
   try {
@@ -122,15 +176,12 @@ export async function POST(
      */
     if (game === "slots") {
       if (action !== "spin") {
-        return response(
-          { error: "Invalid Slots action." },
-          400
-        );
+        return response({ error: "Invalid Slots action." }, 400);
       }
 
       const bet = validAmount(body.bet);
 
-      if (!bet) {
+      if (bet === null) {
         return response(
           {
             error:
@@ -140,21 +191,11 @@ export async function POST(
         );
       }
 
-      const symbols = [
-        "🍒",
-        "🍋",
-        "🔔",
-        "🍇",
-        "💎",
-        "👑",
-      ];
+      const symbols = ["🍒", "🍋", "🔔", "🍇", "💎", "👑"];
 
       const reels = Array.from(
         { length: 3 },
-        () =>
-          symbols[
-            Math.floor(Math.random() * symbols.length)
-          ]
+        () => symbols[randomInt(symbols.length)]
       );
 
       let multiplier = 0;
@@ -178,142 +219,97 @@ export async function POST(
       const payout = money(bet * multiplier);
       const net = money(payout - bet);
 
-      const result = await prisma.$transaction(
-        async (tx) => {
-          // Debit only if the user has enough funds.
-          const debit = await tx.user.updateMany({
-            where: {
-              id: user.id,
-              balance: { gte: bet },
-            },
-            data: {
-              balance: { decrement: bet },
-            },
+      const balance = await prisma.$transaction(async (tx) => {
+        await debitBet(tx, user.id, bet);
+
+        if (payout > 0) {
+          await tx.user.update({
+            where: { id: user.id },
+            data: { balance: { increment: payout } },
           });
-
-          if (!debit.count) {
-            throw new Error("INSUFFICIENT");
-          }
-
-          if (payout > 0) {
-            await tx.user.update({
-              where: { id: user.id },
-              data: {
-                balance: { increment: payout },
-              },
-            });
-          }
-
-          await tx.gameHistory.create({
-            data: {
-              userId: user.id,
-              game: "slots",
-              betAmount: bet,
-              payout,
-              result: JSON.stringify({
-                reels,
-                multiplier,
-              }),
-            },
-          });
-
-          const freshUser =
-            await tx.user.findUniqueOrThrow({
-              where: { id: user.id },
-              select: { balance: true },
-            });
-
-          return {
-            balance: Number(freshUser.balance),
-          };
         }
-      );
+
+        await tx.gameHistory.create({
+          data: {
+            userId: user.id,
+            game: "slots",
+            betAmount: bet,
+            payout,
+            result: JSON.stringify({ reels, multiplier }),
+          },
+        });
+
+        const freshUser = await tx.user.findUniqueOrThrow({
+          where: { id: user.id },
+          select: { balance: true },
+        });
+
+        return Number(freshUser.balance);
+      });
 
       return response({
         reels,
         multiplier,
         payout,
         net,
-        balance: result.balance,
+        balance,
       });
     }
 
     /*
-     * AVIATOR
+     * ROYAL AVIATOR
      */
     if (game === "aviator") {
       if (action === "start") {
         const bet = validAmount(body.bet);
 
-        if (!bet) {
-          return response(
-            { error: "Invalid bet amount." },
-            400
-          );
+        if (bet === null) {
+          return response({ error: "Invalid bet amount." }, 400);
         }
 
-        const existingRound =
-          await prisma.activeGame.findFirst({
-            where: {
-              userId: user.id,
-              game: "aviator",
-              status: "ACTIVE",
-            },
-            orderBy: { createdAt: "desc" },
-          });
+        const existingRound = await prisma.activeGame.findFirst({
+          where: {
+            userId: user.id,
+            game: "aviator",
+            status: "ACTIVE",
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
         if (existingRound) {
           return response(
-            {
-              error:
-                "You already have an active Aviator round.",
-            },
+            { error: "You already have an active Aviator round." },
             409
           );
         }
 
         const crashAt = generateCrashMultiplier();
 
-        const created = await prisma.$transaction(
-          async (tx) => {
-            const debit = await tx.user.updateMany({
-              where: {
-                id: user.id,
-                balance: { gte: bet },
-              },
-              data: {
-                balance: { decrement: bet },
-              },
-            });
+        const created = await prisma.$transaction(async (tx) => {
+          await debitBet(tx, user.id, bet);
 
-            if (!debit.count) {
-              throw new Error("INSUFFICIENT");
-            }
+          const round = await tx.activeGame.create({
+            data: {
+              userId: user.id,
+              game: "aviator",
+              state: {
+                bet,
+                crashAt,
+                startedAt: Date.now(),
+              } as Prisma.InputJsonValue,
+            },
+          });
 
-            const round = await tx.activeGame.create({
-              data: {
-                userId: user.id,
-                game: "aviator",
-                state: {
-                  bet,
-                  crashAt,
-                  startedAt: Date.now(),
-                } as Prisma.InputJsonValue,
-              },
-            });
+          const freshUser = await tx.user.findUniqueOrThrow({
+            where: { id: user.id },
+            select: { balance: true },
+          });
 
-            const freshUser =
-              await tx.user.findUniqueOrThrow({
-                where: { id: user.id },
-                select: { balance: true },
-              });
-
-            return {
-              roundId: round.id,
-              balance: Number(freshUser.balance),
-            };
-          }
-        );
+          return {
+            roundId: round.id,
+            balance: Number(freshUser.balance),
+          };
+        });
 
         return response({
           roundId: created.roundId,
@@ -333,10 +329,7 @@ export async function POST(
         });
 
         if (!round) {
-          return response(
-            { error: "No active Aviator round." },
-            409
-          );
+          return response({ error: "No active Aviator round." }, 409);
         }
 
         const state = round.state as State;
@@ -348,21 +341,24 @@ export async function POST(
 
         const currentMultiplier = Math.max(
           1,
-          Math.floor(
-            Math.exp(elapsed / 5000) * 100
-          ) / 100
+          Math.floor(Math.exp(elapsed / 5000) * 100) / 100
         );
 
-        // The server, not the browser, decides whether
-        // the requested cash-out beat the crash point.
         if (currentMultiplier >= Number(state.crashAt)) {
-          await prisma.$transaction([
-            prisma.activeGame.update({
-              where: { id: round.id },
+          await prisma.$transaction(async (tx) => {
+            const finished = await tx.activeGame.updateMany({
+              where: {
+                id: round.id,
+                status: "ACTIVE",
+              },
               data: { status: "LOST" },
-            }),
+            });
 
-            prisma.gameHistory.create({
+            if (finished.count !== 1) {
+              throw new Error("ROUND_FINISHED");
+            }
+
+            await tx.gameHistory.create({
               data: {
                 userId: user.id,
                 game: "aviator",
@@ -373,87 +369,67 @@ export async function POST(
                   crashAt: state.crashAt,
                 }),
               },
-            }),
-          ]);
-
-          const freshUser =
-            await prisma.user.findUniqueOrThrow({
-              where: { id: user.id },
-              select: { balance: true },
             });
+          });
 
           return response({
             crashed: true,
             crashAt: state.crashAt,
-            balance: Number(freshUser.balance),
+            balance: await getFreshBalance(user.id),
           });
         }
 
         const multiplier = currentMultiplier;
+        const payout = money(Number(state.bet) * multiplier);
 
-        const payout = money(
-          Number(state.bet) * multiplier
-        );
+        const balance = await prisma.$transaction(async (tx) => {
+          const finished = await tx.activeGame.updateMany({
+            where: {
+              id: round.id,
+              status: "ACTIVE",
+            },
+            data: { status: "CASHED_OUT" },
+          });
 
-        const newBalance = await prisma.$transaction(
-          async (tx) => {
-            const finished =
-              await tx.activeGame.updateMany({
-                where: {
-                  id: round.id,
-                  status: "ACTIVE",
-                },
-                data: {
-                  status: "CASHED_OUT",
-                },
-              });
-
-            if (!finished.count) {
-              throw new Error("ROUND_FINISHED");
-            }
-
-            await tx.user.update({
-              where: { id: user.id },
-              data: {
-                balance: { increment: payout },
-              },
-            });
-
-            await tx.gameHistory.create({
-              data: {
-                userId: user.id,
-                game: "aviator",
-                betAmount: Number(state.bet),
-                payout,
-                result: JSON.stringify({
-                  outcome: "cashout",
-                  multiplier,
-                }),
-              },
-            });
-
-            const freshUser =
-              await tx.user.findUniqueOrThrow({
-                where: { id: user.id },
-                select: { balance: true },
-              });
-
-            return Number(freshUser.balance);
+          if (finished.count !== 1) {
+            throw new Error("ROUND_FINISHED");
           }
-        );
+
+          await tx.user.update({
+            where: { id: user.id },
+            data: { balance: { increment: payout } },
+          });
+
+          await tx.gameHistory.create({
+            data: {
+              userId: user.id,
+              game: "aviator",
+              betAmount: Number(state.bet),
+              payout,
+              result: JSON.stringify({
+                outcome: "cashout",
+                multiplier,
+              }),
+            },
+          });
+
+          const freshUser = await tx.user.findUniqueOrThrow({
+            where: { id: user.id },
+            select: { balance: true },
+          });
+
+          return Number(freshUser.balance);
+        });
 
         return response({
           crashed: false,
           multiplier,
           payout,
-          balance: newBalance,
+          balance,
         });
       }
 
-      return response(
-        { error: "Invalid Aviator action." },
-        400
-      );
+      return response({ error: "Invalid Aviator action." }, 400);
     }
 
     /*
@@ -464,11 +440,8 @@ export async function POST(
         const bet = validAmount(body.bet);
         const mineCount = Number(body.mineCount);
 
-        if (!bet) {
-          return response(
-            { error: "Invalid bet amount." },
-            400
-          );
+        if (bet === null) {
+          return response({ error: "Invalid bet amount." }, 400);
         }
 
         if (
@@ -482,74 +455,50 @@ export async function POST(
           );
         }
 
-        const existingRound =
-          await prisma.activeGame.findFirst({
-            where: {
-              userId: user.id,
-              game: "mines",
-              status: "ACTIVE",
-            },
-            orderBy: { createdAt: "desc" },
-          });
+        const existingRound = await prisma.activeGame.findFirst({
+          where: {
+            userId: user.id,
+            game: "mines",
+            status: "ACTIVE",
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
         if (existingRound) {
           return response(
-            {
-              error:
-                "You already have an active Mines round.",
-            },
+            { error: "You already have an active Mines round." },
             409
           );
         }
 
-        const mines = Array.from(
-          { length: 25 },
-          (_, index) => index
-        )
-          .sort(() => Math.random() - 0.5)
-          .slice(0, mineCount);
+        const minePositions = shuffledTiles().slice(0, mineCount);
 
-        const created = await prisma.$transaction(
-          async (tx) => {
-            const debit = await tx.user.updateMany({
-              where: {
-                id: user.id,
-                balance: { gte: bet },
-              },
-              data: {
-                balance: { decrement: bet },
-              },
-            });
+        const created = await prisma.$transaction(async (tx) => {
+          await debitBet(tx, user.id, bet);
 
-            if (!debit.count) {
-              throw new Error("INSUFFICIENT");
-            }
+          const round = await tx.activeGame.create({
+            data: {
+              userId: user.id,
+              game: "mines",
+              state: {
+                bet,
+                mineCount,
+                mines: minePositions,
+                picks: [],
+              } as Prisma.InputJsonValue,
+            },
+          });
 
-            const round = await tx.activeGame.create({
-              data: {
-                userId: user.id,
-                game: "mines",
-                state: {
-                  bet,
-                  mineCount,
-                  mines,
-                  picks: [],
-                } as Prisma.InputJsonValue,
-              },
-            });
+          const freshUser = await tx.user.findUniqueOrThrow({
+            where: { id: user.id },
+            select: { balance: true },
+          });
 
-            const freshUser =
-              await tx.user.findUniqueOrThrow({
-                where: { id: user.id },
-                select: { balance: true },
-              });
-
-            return {
-              roundId: round.id,
-              balance: Number(freshUser.balance),
-            };
-          }
-        );
+          return {
+            roundId: round.id,
+            balance: Number(freshUser.balance),
+          };
+        });
 
         return response({
           roundId: created.roundId,
@@ -571,16 +520,17 @@ export async function POST(
       });
 
       if (!round) {
-        return response(
-          { error: "No active Mines round." },
-          409
-        );
+        return response({ error: "No active Mines round." }, 409);
       }
 
       const state = round.state as State;
 
       const picks: number[] = Array.isArray(state.picks)
         ? state.picks
+        : [];
+
+      const mines: number[] = Array.isArray(state.mines)
+        ? state.mines
         : [];
 
       if (action === "reveal") {
@@ -592,20 +542,24 @@ export async function POST(
           tile > 24 ||
           picks.includes(tile)
         ) {
-          return response(
-            { error: "Choose an unrevealed tile." },
-            400
-          );
+          return response({ error: "Choose an unrevealed tile." }, 400);
         }
 
-        if ((state.mines as number[]).includes(tile)) {
-          await prisma.$transaction([
-            prisma.activeGame.update({
-              where: { id: round.id },
+        if (mines.includes(tile)) {
+          await prisma.$transaction(async (tx) => {
+            const finished = await tx.activeGame.updateMany({
+              where: {
+                id: round.id,
+                status: "ACTIVE",
+              },
               data: { status: "LOST" },
-            }),
+            });
 
-            prisma.gameHistory.create({
+            if (finished.count !== 1) {
+              throw new Error("ROUND_FINISHED");
+            }
+
+            await tx.gameHistory.create({
               data: {
                 userId: user.id,
                 game: "mines",
@@ -617,21 +571,15 @@ export async function POST(
                   mineCount: state.mineCount,
                 }),
               },
-            }),
-          ]);
-
-          const freshUser =
-            await prisma.user.findUniqueOrThrow({
-              where: { id: user.id },
-              select: { balance: true },
             });
+          });
 
           return response({
             hitMine: true,
             tile,
-            mines: state.mines,
+            mines,
             picks,
-            balance: Number(freshUser.balance),
+            balance: await getFreshBalance(user.id),
           });
         }
 
@@ -642,8 +590,11 @@ export async function POST(
           Number(state.mineCount)
         );
 
-        await prisma.activeGame.update({
-          where: { id: round.id },
+        await prisma.activeGame.updateMany({
+          where: {
+            id: round.id,
+            status: "ACTIVE",
+          },
           data: {
             state: {
               ...state,
@@ -657,14 +608,12 @@ export async function POST(
           tile,
           picks: nextPicks,
           multiplier,
-          potentialPayout: money(
-            Number(state.bet) * multiplier
-          ),
+          potentialPayout: money(Number(state.bet) * multiplier),
         });
       }
 
       if (action === "cashout") {
-        if (!picks.length) {
+        if (picks.length === 0) {
           return response(
             {
               error:
@@ -679,73 +628,62 @@ export async function POST(
           Number(state.mineCount)
         );
 
-        const payout = money(
-          Number(state.bet) * multiplier
-        );
+        const payout = money(Number(state.bet) * multiplier);
 
-        const newBalance = await prisma.$transaction(
-          async (tx) => {
-            const finished =
-              await tx.activeGame.updateMany({
-                where: {
-                  id: round.id,
-                  status: "ACTIVE",
-                },
-                data: {
-                  status: "CASHED_OUT",
-                },
-              });
+        const balance = await prisma.$transaction(async (tx) => {
+          const finished = await tx.activeGame.updateMany({
+            where: {
+              id: round.id,
+              status: "ACTIVE",
+            },
+            data: { status: "CASHED_OUT" },
+          });
 
-            if (!finished.count) {
-              throw new Error("ROUND_FINISHED");
-            }
-
-            await tx.user.update({
-              where: { id: user.id },
-              data: {
-                balance: { increment: payout },
-              },
-            });
-
-            await tx.gameHistory.create({
-              data: {
-                userId: user.id,
-                game: "mines",
-                betAmount: Number(state.bet),
-                payout,
-                result: JSON.stringify({
-                  outcome: "cashout",
-                  picks: picks.length,
-                  multiplier,
-                }),
-              },
-            });
-
-            const freshUser =
-              await tx.user.findUniqueOrThrow({
-                where: { id: user.id },
-                select: { balance: true },
-              });
-
-            return Number(freshUser.balance);
+          if (finished.count !== 1) {
+            throw new Error("ROUND_FINISHED");
           }
-        );
+
+          await tx.user.update({
+            where: { id: user.id },
+            data: { balance: { increment: payout } },
+          });
+
+          await tx.gameHistory.create({
+            data: {
+              userId: user.id,
+              game: "mines",
+              betAmount: Number(state.bet),
+              payout,
+              result: JSON.stringify({
+                outcome: "cashout",
+                picks: picks.length,
+                multiplier,
+              }),
+            },
+          });
+
+          const freshUser = await tx.user.findUniqueOrThrow({
+            where: { id: user.id },
+            select: { balance: true },
+          });
+
+          return Number(freshUser.balance);
+        });
 
         return response({
           payout,
           multiplier,
-          balance: newBalance,
-          mines: state.mines,
+          balance,
+          mines,
           picks,
           cashedOut: true,
         });
       }
 
-      return response(
-        { error: "Invalid Mines action." },
-        400
-      );
+      return response({ error: "Invalid Mines action." }, 400);
     }
+
+    return response({ error: "Invalid game action." }, 400);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "";
@@ -769,11 +707,9 @@ export async function POST(
     return response(
       {
         error:
-          "Could not process this game action. Check your connection and balance before retrying.",
+          "Could not process this game action. Please check your account before retrying.",
       },
       500
     );
   }
-
-  return response({ error: "Invalid game action." }, 400);
 }
