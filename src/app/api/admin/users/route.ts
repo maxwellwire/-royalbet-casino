@@ -14,6 +14,7 @@ function errorResponse(message: string, status: number) {
 
 async function getAdmin() {
   const user = await getCurrentUser();
+
   return user?.role === "ADMIN" ? user : null;
 }
 
@@ -27,7 +28,9 @@ export async function GET() {
     }
 
     const users = await prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
       select: {
         id: true,
         name: true,
@@ -57,11 +60,13 @@ export async function GET() {
 
 const creditSchema = z.object({
   userId: z.string().trim().min(1, "Select a registered user."),
+
   amount: z.coerce
     .number()
-    .finite()
+    .finite("Enter a valid funding amount.")
     .positive("The amount must be greater than zero.")
     .max(1_000_000, "The maximum funding amount is 1,000,000 USDT."),
+
   note: z
     .string()
     .trim()
@@ -70,16 +75,20 @@ const creditSchema = z.object({
     .default(""),
 });
 
-// POST: Credit a user's existing balance and record the transaction.
+// POST: Credit USDT to a user's internal RoyalBet account balance.
+// This does not transfer cryptocurrency on the blockchain.
 export async function POST(request: Request) {
   try {
+    // Only administrators can credit accounts.
     const admin = await getAdmin();
 
     if (!admin) {
       return errorResponse("Admin access required.", 403);
     }
 
+    // Parse the incoming JSON safely.
     const body: unknown = await request.json().catch(() => null);
+
     const parsed = creditSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -92,19 +101,32 @@ export async function POST(request: Request) {
 
     const { userId, amount, note } = parsed.data;
 
-    // Reject amounts that cannot be represented to two decimal places.
-    if (Math.round(amount * 100) !== amount * 100) {
+    /*
+     * Validate the amount to two decimal places.
+     *
+     * A small tolerance avoids rejecting legitimate amounts such as
+     * 0.29 because of JavaScript floating-point representation.
+     */
+    const amountInCents = Math.round(amount * 100);
+
+    if (
+      !Number.isSafeInteger(amountInCents) ||
+      Math.abs(amount * 100 - amountInCents) > 1e-8
+    ) {
       return errorResponse(
         "The funding amount cannot have more than two decimal places.",
         400
       );
     }
 
-    // Convert the amount to a fixed two-decimal representation.
-    const amountDecimal = amount.toFixed(2);
+    // Store the amount with exactly two decimal places.
+    const amountDecimal = (amountInCents / 100).toFixed(2);
 
+    // Confirm that the destination account exists.
     const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {
+        id: userId,
+      },
       select: {
         id: true,
         email: true,
@@ -117,10 +139,17 @@ export async function POST(request: Request) {
 
     const reference = `ADMIN-${randomUUID()}`;
 
-    // Both operations must succeed together.
+    /*
+     * Update the user's balance and create the transaction record
+     * within the same database transaction.
+     *
+     * If either database operation fails, both operations are rolled back.
+     */
     const result = await prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({
-        where: { id: targetUser.id },
+        where: {
+          id: targetUser.id,
+        },
         data: {
           balance: {
             increment: amountDecimal,
@@ -171,22 +200,25 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: `${amountDecimal} USDT credited to ${result.user.email}.`,
+
         user: {
           id: result.user.id,
           email: result.user.email,
           balance: Number(result.user.balance),
         },
+
         transaction: {
           ...result.transaction,
           amount: Number(result.transaction.amount),
         },
       },
-      { status: 201 }
+      {
+        status: 201,
+      }
     );
   } catch (error) {
     console.error("Admin account funding error:", error);
 
-    // Keep internal database details out of the public response.
     return errorResponse(
       "Account funding failed. Check the Vercel server logs for the exact cause.",
       500
