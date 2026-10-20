@@ -23,7 +23,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    let body: { bet?: unknown };
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid request." },
+        { status: 400 }
+      );
+    }
+
     const bet = Number(body.bet);
 
     if (
@@ -33,19 +43,21 @@ export async function POST(request: Request) {
       Math.round(bet * 100) !== bet * 100
     ) {
       return NextResponse.json(
-        { success: false, error: "Bet must be between 10 and 1,000." },
+        {
+          success: false,
+          error: "Bet must be between 10 and 1,000.",
+        },
         { status: 400 }
       );
     }
 
+    // Generates a secure random value from 0.00 to 99.99.
     const roll = randomInt(0, 10000) / 100;
     const won = roll < TARGET;
 
     const payout = won
       ? Math.round(bet * MULTIPLIER * 100) / 100
       : 0;
-
-    const net = Math.round((payout - bet) * 100) / 100;
 
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.user.findUnique({
@@ -57,17 +69,16 @@ export async function POST(request: Request) {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      const updated = await tx.user.update({
+      await tx.user.update({
         where: { id: user.id },
         data: {
           balance: {
             decrement: bet,
           },
         },
-        select: { balance: true },
       });
 
-      let finalBalance = Number(updated.balance);
+      let finalBalance = Number(account.balance) - bet;
 
       if (payout > 0) {
         const paid = await tx.user.update({
@@ -87,18 +98,15 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           game: "dice",
-          bet,
+          betAmount: bet,
           payout,
-          net,
           result: won
             ? `Won: rolled ${roll.toFixed(2)} under ${TARGET}`
             : `Lost: rolled ${roll.toFixed(2)}`,
         },
       });
 
-      return {
-        balance: finalBalance,
-      };
+      return { balance: finalBalance };
     });
 
     return NextResponse.json({
@@ -110,7 +118,6 @@ export async function POST(request: Request) {
       won,
       multiplier: won ? MULTIPLIER : 0,
       payout,
-      net,
       balance: result.balance,
       message: won ? "You won!" : "Better luck next time!",
     });
@@ -128,7 +135,10 @@ export async function POST(request: Request) {
     console.error("Dice game error:", error);
 
     return NextResponse.json(
-      { success: false, error: "Unable to play Dice right now." },
+      {
+        success: false,
+        error: "Unable to play Dice right now.",
+      },
       { status: 500 }
     );
   }
