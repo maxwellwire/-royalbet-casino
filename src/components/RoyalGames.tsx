@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type GameName = "aviator" | "dice" | "mines";
 type MessageType = "good" | "bad" | "info";
+type BetMode = "bet" | "auto";
 
 type ApiResult = {
   error?: string;
@@ -28,7 +29,7 @@ type ApiResult = {
 
 const GOLD = "#f4c65b";
 const GREEN = "#25d366";
-const RED = "#ff4545";
+const RED = "#ff334f";
 const MIN_BET = 10;
 const MAX_BET = 1000;
 
@@ -39,9 +40,15 @@ function formatMoney(value: number) {
   });
 }
 
+function randomDemoMultiplier() {
+  const values = [1.12, 1.28, 1.46, 1.73, 2.15, 1.09, 3.24, 1.64, 5.18, 1.37];
+  return values[Math.floor(Math.random() * values.length)];
+}
+
 export default function RoyalGames() {
   const [game, setGame] = useState<GameName>("aviator");
-  const [bet, setBet] = useState(10);
+  const [bet, setBet] = useState(50);
+  const [betTwo, setBetTwo] = useState(50);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -54,6 +61,22 @@ export default function RoyalGames() {
   const [cashedOut, setCashedOut] = useState(false);
   const [flightResult, setFlightResult] = useState("");
   const [flightStarted, setFlightStarted] = useState<number | null>(null);
+  const [history, setHistory] = useState<number[]>([
+    1.42, 3.15, 1.42, 1.95, 7.45, 1.64, 1.25, 1.73,
+  ]);
+  const [betModeOne, setBetModeOne] = useState<BetMode>("bet");
+  const [betModeTwo, setBetModeTwo] = useState<BetMode>("bet");
+  const [autoTargetOne, setAutoTargetOne] = useState(2);
+  const [autoTargetTwo, setAutoTargetTwo] = useState(2);
+  const [secondBetActive, setSecondBetActive] = useState(false);
+  const [secondBetCashed, setSecondBetCashed] = useState(false);
+  const [secondBetLost, setSecondBetLost] = useState(false);
+  const [firstBetCashed, setFirstBetCashed] = useState(false);
+  const [firstBetLost, setFirstBetLost] = useState(false);
+  const [firstPayout, setFirstPayout] = useState<number | null>(null);
+  const [secondPayout, setSecondPayout] = useState<number | null>(null);
+  const [autoSubmittedOne, setAutoSubmittedOne] = useState(false);
+  const [autoSubmittedTwo, setAutoSubmittedTwo] = useState(false);
 
   // Dice
   const [diceTarget, setDiceTarget] = useState(50);
@@ -72,6 +95,12 @@ export default function RoyalGames() {
   const loadingRef = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const diceAnimationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flightAnimationRef = useRef<number | null>(null);
+  const flightStartRef = useRef<number | null>(null);
+  const currentMultiplierRef = useRef(1);
+  const autoCashoutRef = useRef(false);
+  const secondAutoCashoutRef = useRef(false);
+  const playingRef = useRef(false);
 
   const notify = useCallback(
     (text: string, type: MessageType = "info") => {
@@ -88,6 +117,13 @@ export default function RoyalGames() {
     }
   }, []);
 
+  const stopFlightAnimation = useCallback(() => {
+    if (flightAnimationRef.current !== null) {
+      cancelAnimationFrame(flightAnimationRef.current);
+      flightAnimationRef.current = null;
+    }
+  }, []);
+
   const stopDiceAnimation = useCallback(() => {
     if (diceAnimationRef.current) {
       clearInterval(diceAnimationRef.current);
@@ -99,21 +135,25 @@ export default function RoyalGames() {
   useEffect(() => {
     return () => {
       stopPolling();
+      stopFlightAnimation();
+
       if (diceAnimationRef.current) {
         clearInterval(diceAnimationRef.current);
       }
     };
-  }, [stopPolling]);
+  }, [stopPolling, stopFlightAnimation]);
 
   const requestGame = async (
     gameName: GameName,
     action: string,
+    amount = bet,
     extra: Record<string, unknown> = {}
   ): Promise<ApiResult> => {
     const response = await fetch(`/api/games/${gameName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, bet, ...extra }),
+      body: JSON.stringify({ action, bet: amount, ...extra }),
+      cache: "no-store",
     });
 
     const data = (await response.json()) as ApiResult;
@@ -129,17 +169,50 @@ export default function RoyalGames() {
     return data;
   };
 
-  const changeBet = (amount: number) => {
-    setBet(Math.min(MAX_BET, Math.max(MIN_BET, amount)));
+  const changeBet = (amount: number, panel: 1 | 2 = 1) => {
+    const next = Math.round(Math.min(MAX_BET, Math.max(MIN_BET, amount)) * 100) / 100;
+
+    if (panel === 1) setBet(next);
+    else setBetTwo(next);
   };
 
-  // AVIATOR — the server must report crashes through its status action.
-  const checkAviatorStatus = async () => {
+  const appendHistory = (value: number) => {
+    setHistory((previous) => [value, ...previous].slice(0, 15));
+  };
+
+  const animateFlight = useCallback(() => {
+    if (!playingRef.current || flightStartRef.current === null) return;
+
+    const elapsed = Math.max(0, performance.now() - flightStartRef.current);
+    const localMultiplier = Math.max(
+      1,
+      Math.floor(Math.exp(elapsed / 5000) * 100) / 100
+    );
+
+    currentMultiplierRef.current = localMultiplier;
+    setMultiplier(localMultiplier);
+
+    if (playingRef.current) {
+      flightAnimationRef.current = requestAnimationFrame(animateFlight);
+    }
+  }, []);
+
+  const finishFlight = useCallback(() => {
+    playingRef.current = false;
+    stopFlightAnimation();
+    stopPolling();
+    setPlaying(false);
+    setFlightStarted(null);
+  }, [stopFlightAnimation, stopPolling]);
+
+  // The status endpoint is separate from /api/games/aviator.
+  // Do not send { action: "status" } to the main game route.
+  const checkAviatorStatus = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch("/api/games/aviator", {
+      const response = await fetch("/api/games/aviator/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "status" }),
+        body: JSON.stringify({}),
         cache: "no-store",
       });
 
@@ -154,26 +227,43 @@ export default function RoyalGames() {
       }
 
       if (data.active && typeof data.multiplier === "number") {
+        currentMultiplierRef.current = data.multiplier;
         setMultiplier(data.multiplier);
+
+        if (
+          betModeOne === "auto" &&
+          !autoCashoutRef.current &&
+          data.multiplier >= autoTargetOne
+        ) {
+          autoCashoutRef.current = true;
+          void cashOutAviator(1);
+        }
+
+        if (
+          secondBetActive &&
+          betModeTwo === "auto" &&
+          !secondAutoCashoutRef.current &&
+          data.multiplier >= autoTargetTwo
+        ) {
+          secondAutoCashoutRef.current = true;
+          void cashOutAviator(2);
+        }
       }
 
       if (data.crashed) {
-        stopPolling();
-        setPlaying(false);
+        finishFlight();
         setCrashed(true);
         setCashedOut(false);
-        setFlightStarted(null);
         setFlightResult("FLIGHT CRASHED");
 
-        if (typeof data.crashAt === "number") {
-          setMultiplier(data.crashAt);
-        }
+        const crashPoint = data.crashAt ?? currentMultiplierRef.current;
+        setMultiplier(crashPoint);
+        appendHistory(crashPoint);
 
-        notify(
-          `💥 The rocket crashed at ${(data.crashAt ?? multiplier).toFixed(2)}×.`,
-          "bad"
-        );
+        if (!firstBetCashed) setFirstBetLost(true);
+        if (secondBetActive && !secondBetCashed) setSecondBetLost(true);
 
+        notify(`Flight crashed at ${crashPoint.toFixed(2)}×.`, "bad");
         return false;
       }
 
@@ -186,9 +276,21 @@ export default function RoyalGames() {
         "bad"
       );
 
+      // Avoid silently abandoning the active server-side round.
       return true;
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    autoTargetOne,
+    autoTargetTwo,
+    betModeOne,
+    betModeTwo,
+    finishFlight,
+    firstBetCashed,
+    secondBetActive,
+    secondBetCashed,
+    notify,
+  ]);
 
   useEffect(() => {
     if (!playing || game !== "aviator") {
@@ -204,7 +306,6 @@ export default function RoyalGames() {
       const shouldContinue = await checkAviatorStatus();
 
       if (!cancelled && shouldContinue) {
-        // Recursive timeout avoids overlapping requests.
         pollTimerRef.current = setTimeout(poll, 300);
       }
     };
@@ -215,27 +316,55 @@ export default function RoyalGames() {
       cancelled = true;
       stopPolling();
     };
-    // checkAviatorStatus intentionally reads current React setters/state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, game, stopPolling]);
+  }, [playing, game, checkAviatorStatus, stopPolling]);
 
-  const startAviator = async () => {
-    if (loadingRef.current || playing) return;
+  const startAviator = async (panel: 1 | 2) => {
+    if (loadingRef.current || playingRef.current) return;
+
+    const amount = panel === 1 ? bet : betTwo;
 
     loadingRef.current = true;
     setLoading(true);
     setMessage("");
+
     setMultiplier(1);
+    currentMultiplierRef.current = 1;
     setCrashed(false);
     setCashedOut(false);
     setFlightResult("");
+    setFirstBetCashed(false);
+    setFirstBetLost(false);
+    setSecondBetCashed(false);
+    setSecondBetLost(false);
+    setFirstPayout(null);
+    setSecondPayout(null);
+    setSecondBetActive(panel === 2);
+    setAutoSubmittedOne(false);
+    setAutoSubmittedTwo(false);
+    autoCashoutRef.current = false;
+    secondAutoCashoutRef.current = false;
 
     try {
-      await requestGame("aviator", "start");
+      await requestGame("aviator", "start", amount);
+
+      flightStartRef.current = performance.now();
+      playingRef.current = true;
 
       setFlightStarted(Date.now());
       setPlaying(true);
-      notify("🚀 Flight started. Cash out before the crash!", "good");
+
+      stopFlightAnimation();
+      flightAnimationRef.current = requestAnimationFrame(animateFlight);
+
+      if (panel === 2) {
+        setSecondBetActive(true);
+        setAutoSubmittedTwo(true);
+      } else {
+        setAutoSubmittedOne(true);
+        setSecondBetActive(false);
+      }
+
+      notify("Flight started. Cash out before the crash!", "good");
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "Could not start Aviator.",
@@ -247,44 +376,54 @@ export default function RoyalGames() {
     }
   };
 
-  const cashOutAviator = async () => {
-    if (!playing || loadingRef.current) return;
+  const cashOutAviator = async (panel: 1 | 2 = 1) => {
+    if (!playingRef.current || loadingRef.current) return;
+
+    // This backend supports one active Aviator round per user.
+    // Both visual panels therefore cannot place independent simultaneous
+    // server bets without a matching backend change.
+    if (panel === 2 && !secondBetActive) return;
 
     loadingRef.current = true;
     setLoading(true);
 
     try {
-      const data = await requestGame("aviator", "cashout");
-
-      stopPolling();
-      setPlaying(false);
-      setFlightStarted(null);
+      const data = await requestGame("aviator", "cashout", panel === 1 ? bet : betTwo);
 
       if (data.crashed) {
+        finishFlight();
         setCrashed(true);
         setCashedOut(false);
         setFlightResult("FLIGHT CRASHED");
 
-        if (typeof data.crashAt === "number") {
-          setMultiplier(data.crashAt);
-        }
-
-        notify("The rocket crashed before your cashout completed.", "bad");
-      } else {
-        const finalMultiplier = data.multiplier ?? multiplier;
-
-        setMultiplier(finalMultiplier);
-        setCashedOut(true);
-        setCrashed(false);
-        setFlightResult("CASHED OUT!");
-
-        notify(
-          `Cashed out at ${finalMultiplier.toFixed(2)}×. Payout: ${formatMoney(
-            data.payout ?? 0
-          )}`,
-          "good"
-        );
+        const crashPoint = data.crashAt ?? currentMultiplierRef.current;
+        setMultiplier(crashPoint);
+        appendHistory(crashPoint);
+        notify(`The flight crashed at ${crashPoint.toFixed(2)}×.`, "bad");
+        return;
       }
+
+      const finalMultiplier = data.multiplier ?? currentMultiplierRef.current;
+      const payout = data.payout ?? 0;
+
+      if (panel === 1) {
+        setFirstBetCashed(true);
+        setFirstPayout(payout);
+        setCashedOut(true);
+        setFlightResult("CASHED OUT!");
+      } else {
+        setSecondBetCashed(true);
+        setSecondPayout(payout);
+      }
+
+      setMultiplier(finalMultiplier);
+      finishFlight();
+      appendHistory(finalMultiplier);
+
+      notify(
+        `Cashed out at ${finalMultiplier.toFixed(2)}×. Payout: ${formatMoney(payout)} USDT`,
+        "good"
+      );
     } catch (error) {
       notify(
         error instanceof Error ? error.message : "Cashout failed.",
@@ -321,8 +460,7 @@ export default function RoyalGames() {
     }, 70);
 
     try {
-      // The server determines the actual result and payout.
-      const data = await requestGame("dice", "roll", {
+      const data = await requestGame("dice", "roll", bet, {
         target: diceTarget,
       });
 
@@ -331,15 +469,13 @@ export default function RoyalGames() {
         diceAnimationRef.current = null;
       }
 
-      setDiceRoll(
-        typeof data.roll === "number" ? data.roll : 0
-      );
+      setDiceRoll(typeof data.roll === "number" ? data.roll : 0);
       setDiceWon(Boolean(data.won));
       setDicePayout(data.payout ?? 0);
 
       notify(
         data.won
-          ? `🎉 You won ${formatMoney(data.payout ?? 0)}!`
+          ? `You won ${formatMoney(data.payout ?? 0)} USDT!`
           : `No win this round. Roll: ${(data.roll ?? 0).toFixed(2)}.`,
         data.won ? "good" : "info"
       );
@@ -372,7 +508,7 @@ export default function RoyalGames() {
     setMessage("");
 
     try {
-      await requestGame("mines", "start", { mineCount });
+      await requestGame("mines", "start", bet, { mineCount });
       setMinesStarted(true);
       notify("Round started. Choose a safe tile.", "good");
     } catch (error) {
@@ -387,11 +523,7 @@ export default function RoyalGames() {
   };
 
   const revealTile = async (tile: number) => {
-    if (
-      !minesStarted ||
-      loadingRef.current ||
-      revealedTiles.includes(tile)
-    ) {
+    if (!minesStarted || loadingRef.current || revealedTiles.includes(tile)) {
       return;
     }
 
@@ -399,7 +531,7 @@ export default function RoyalGames() {
     setLoading(true);
 
     try {
-      const data = await requestGame("mines", "reveal", { tile });
+      const data = await requestGame("mines", "reveal", bet, { tile });
 
       setRevealedTiles((previous) =>
         previous.includes(tile) ? previous : [...previous, tile]
@@ -408,14 +540,14 @@ export default function RoyalGames() {
       if (data.hitMine) {
         setMineTiles(data.mines ?? []);
         setMinesStarted(false);
-        notify("💣 Mine hit. Your bet has been lost.", "bad");
+        notify("Mine hit. Your bet has been lost.", "bad");
       } else {
         if (typeof data.multiplier === "number") {
           setMinesMultiplier(data.multiplier);
         }
 
         notify(
-          `💎 Safe tile! Multiplier: ${(data.multiplier ?? 1).toFixed(2)}×`,
+          `Safe tile! Multiplier: ${(data.multiplier ?? 1).toFixed(2)}×`,
           "good"
         );
       }
@@ -437,13 +569,12 @@ export default function RoyalGames() {
     setLoading(true);
 
     try {
-      const data = await requestGame("mines", "cashout");
-
+      const data = await requestGame("mines", "cashout", bet);
       setMinesStarted(false);
       setMineTiles(data.mines ?? []);
 
       notify(
-        `Winnings secured: ${formatMoney(data.payout ?? 0)}.`,
+        `Winnings secured: ${formatMoney(data.payout ?? 0)} USDT.`,
         "good"
       );
     } catch (error) {
@@ -459,210 +590,552 @@ export default function RoyalGames() {
 
   const switchGame = (nextGame: GameName) => {
     if (playing || loading || minesStarted) return;
-
     setGame(nextGame);
     setMessage("");
   };
 
+  const chance = Math.max(1, Math.min(98, diceTarget));
+  const estimatedMultiplier = Number((99 / chance).toFixed(2));
+
   const progress = Math.min(
-    0.96,
+    0.98,
     Math.max(0, Math.log(Math.max(multiplier, 1)) / 2.6)
   );
 
-  const rocketX = 18 + progress * 270;
-  const rocketY = 258 - progress * 210;
+  const rocketX = 16 + progress * 268;
+  const rocketY = 300 - progress * 220;
 
-  const chartPath = `M 18 258 ${Array.from({ length: 36 }, (_, index) => {
-    const t = (index + 1) / 36;
-    const x = 18 + progress * 270 * t;
-    const y = 258 - progress * 210 * t - Math.sin(t * Math.PI) * 13;
+  const chartPath = `M 10 308 ${Array.from({ length: 44 }, (_, index) => {
+    const t = (index + 1) / 44;
+    const x = 10 + progress * 268 * t;
+    const y = 308 - progress * 220 * t - Math.sin(t * Math.PI) * 12;
     return `L ${x} ${y}`;
   }).join(" ")}`;
 
-  const chance = Math.max(1, Math.min(98, diceTarget));
-  const estimatedMultiplier = Number((99 / chance).toFixed(2));
+  const renderQuickBet = (amount: number, panel: 1 | 2) => (
+    <button
+      key={amount}
+      type="button"
+      className="rg-quick"
+      disabled={playing || loading}
+      onClick={() => changeBet(amount, panel)}
+    >
+      {amount.toLocaleString("en-US")}
+    </button>
+  );
+
+  const renderAviatorPanel = (panel: 1 | 2) => {
+    const amount = panel === 1 ? bet : betTwo;
+    const mode = panel === 1 ? betModeOne : betModeTwo;
+    const setMode = panel === 1 ? setBetModeOne : setBetModeTwo;
+    const autoTarget = panel === 1 ? autoTargetOne : autoTargetTwo;
+    const setAutoTarget = panel === 1 ? setAutoTargetOne : setAutoTargetTwo;
+    const hasCashed = panel === 1 ? firstBetCashed : secondBetCashed;
+    const hasLost = panel === 1 ? firstBetLost : secondBetLost;
+    const payout = panel === 1 ? firstPayout : secondPayout;
+    const hasBet = panel === 1 ? autoSubmittedOne : autoSubmittedTwo;
+
+    return (
+      <div className="rg-aviator-bet" key={panel}>
+        <div className="rg-bet-panel-top">
+          <div className="rg-mode-switch" role="group" aria-label={`Panel ${panel} mode`}>
+            <button
+              type="button"
+              className={mode === "bet" ? "selected" : ""}
+              disabled={playing || loading}
+              onClick={() => setMode("bet")}
+            >
+              Bet
+            </button>
+            <button
+              type="button"
+              className={mode === "auto" ? "selected" : ""}
+              disabled={playing || loading}
+              onClick={() => setMode("auto")}
+            >
+              Auto
+            </button>
+          </div>
+          {panel === 2 && <span className="rg-panel-number">02</span>}
+        </div>
+
+        {mode === "auto" && (
+          <div className="rg-auto-setting">
+            <label htmlFor={`auto-target-${panel}`}>Auto cash-out</label>
+            <div>
+              <input
+                id={`auto-target-${panel}`}
+                type="number"
+                min="1.01"
+                max="1000"
+                step="0.01"
+                value={autoTarget}
+                disabled={playing || loading}
+                onChange={(event) =>
+                  setAutoTarget(
+                    Math.max(1.01, Math.min(1000, Number(event.target.value) || 1.01))
+                  )
+                }
+              />
+              <span>×</span>
+            </div>
+          </div>
+        )}
+
+        <div className="rg-panel-controls">
+          <div className="rg-panel-left">
+            <div className="rg-amount-control">
+              <button
+                type="button"
+                aria-label="Decrease bet"
+                disabled={playing || loading}
+                onClick={() => changeBet(amount - 10, panel)}
+              >
+                −
+              </button>
+              <input
+                aria-label={`Panel ${panel} bet amount in USDT`}
+                type="number"
+                min={MIN_BET}
+                max={MAX_BET}
+                step="1"
+                value={amount}
+                disabled={playing || loading}
+                onChange={(event) =>
+                  changeBet(Number(event.target.value) || MIN_BET, panel)
+                }
+              />
+              <button
+                type="button"
+                aria-label="Increase bet"
+                disabled={playing || loading}
+                onClick={() => changeBet(amount + 10, panel)}
+              >
+                +
+              </button>
+            </div>
+
+            <div className="rg-quick-grid">
+              {[100, 200, 500, 1000].map((value) =>
+                renderQuickBet(value, panel)
+              )}
+            </div>
+          </div>
+
+          <div className="rg-panel-right">
+            {playing && hasBet && !hasCashed && !hasLost ? (
+              <button
+                type="button"
+                className="rg-place-bet rg-cashout"
+                disabled={loading}
+                onClick={() => cashOutAviator(panel)}
+              >
+                <span>{loading ? "PROCESSING…" : "CASH OUT"}</span>
+                <strong>{formatMoney(amount * multiplier)} USDT</strong>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`rg-place-bet ${hasCashed ? "rg-success" : hasLost ? "rg-lost" : ""}`}
+                disabled={loading || playing || (panel === 2 && autoSubmittedOne)}
+                onClick={() => startAviator(panel)}
+              >
+                <span>
+                  {loading
+                    ? "PLEASE WAIT…"
+                    : hasCashed
+                      ? "CASHED OUT"
+                      : hasLost
+                        ? "ROUND LOST"
+                        : "BET"}
+                </span>
+                <strong>{formatMoney(amount)} USDT</strong>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {payout !== null && (
+          <div className="rg-panel-payout">
+            Payout: <strong>{formatMoney(payout)} USDT</strong>
+          </div>
+        )}
+
+        <div className="rg-panel-foot">
+          <span>Bet slip {panel}</span>
+          <span>Min {MIN_BET} · Max {MAX_BET} USDT</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <section className="royal-games">
       <style>{`
         .royal-games {
           width: 100%;
-          max-width: 820px;
+          max-width: 900px;
           margin: 0 auto;
-          color: #f5f5f5;
+          color: #f4f4f4;
           font-family: Inter, Arial, Helvetica, sans-serif;
+          font-variant-numeric: tabular-nums;
         }
+        .royal-games * { box-sizing: border-box; }
         .rg-tabs {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(3,minmax(0,1fr));
           gap: 8px;
           margin-bottom: 12px;
         }
         .rg-tab {
-          min-height: 46px;
-          border: 1px solid #303030;
-          border-radius: 11px;
-          background: #151515;
+          min-height: 44px;
+          border: 1px solid #2e2e2e;
+          border-radius: 12px;
+          background: #141414;
           color: #aaa;
           font-size: 13px;
           font-weight: 850;
           cursor: pointer;
-          transition: background .18s ease, color .18s ease, transform .18s ease;
+          transition: .18s ease;
         }
-        .rg-tab:active { transform: scale(.98); }
         .rg-tab.active {
-          color: #15110a;
+          color: #17120a;
           background: ${GOLD};
           border-color: ${GOLD};
         }
+        .rg-tab:disabled { opacity: .5; cursor: not-allowed; }
         .rg-panel {
-          border: 1px solid #2d2d2d;
-          border-radius: 18px;
-          padding: clamp(12px, 3vw, 20px);
-          background: linear-gradient(145deg, #151515, #0b0b0b);
-          box-shadow: 0 14px 40px rgba(0,0,0,.22);
+          overflow: hidden;
+          border: 1px solid #292929;
+          border-radius: 22px;
+          padding: clamp(10px,2.7vw,20px);
+          background: linear-gradient(145deg,#171717,#0a0a0a);
+          box-shadow: 0 18px 45px #0005;
         }
         .rg-heading {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 16px;
+          gap: 12px;
+          margin-bottom: 14px;
         }
         .rg-heading h2 {
           margin: 0;
-          font-size: 18px;
+          font-size: clamp(17px,4vw,23px);
           font-weight: 950;
-          letter-spacing: .4px;
+          letter-spacing: -.5px;
+        }
+        .rg-brand {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          color: ${RED};
+          font-size: clamp(19px,5vw,28px);
+          font-weight: 1000;
+          font-style: italic;
+        }
+        .rg-brand-icon {
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: linear-gradient(145deg,#bba2ff,#6538e8);
+          color: white;
+          font-size: 20px;
+          font-style: normal;
         }
         .rg-balance {
-          color: ${GOLD};
+          color: #ddd;
           font-size: 12px;
-          font-weight: 800;
+          font-weight: 850;
           text-align: right;
           overflow-wrap: anywhere;
         }
+        .rg-history {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          overflow-x: auto;
+          padding: 5px 0 12px;
+          margin-bottom: 3px;
+          scrollbar-width: none;
+        }
+        .rg-history::-webkit-scrollbar { display: none; }
+        .rg-history-item {
+          flex: 0 0 auto;
+          font-size: 13px;
+          font-weight: 850;
+        }
+        .rg-history-item.low { color: #29b8ff; }
+        .rg-history-item.mid { color: #b36aff; }
+        .rg-history-item.high { color: #29d17e; }
         .rg-chart {
           position: relative;
           width: 100%;
-          max-width: 520px;
-          aspect-ratio: 1 / .82;
-          margin: 0 auto 16px;
+          aspect-ratio: 1.35 / 1;
+          max-height: 430px;
+          margin: 0 auto 12px;
           overflow: hidden;
-          border: 1px solid #263a2c;
-          border-radius: 15px;
+          border: 1px solid #2c2c31;
+          border-radius: 22px;
           background:
-            linear-gradient(rgba(47,96,58,.13) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(47,96,58,.13) 1px, transparent 1px),
-            radial-gradient(ellipse at 12% 95%, #183622 0%, #0b120d 48%, #080b09 100%);
-          background-size: 25px 25px, 25px 25px, auto;
+            radial-gradient(ellipse at 52% 48%,#0d4261 0%,#06151f 33%,transparent 70%),
+            #050505;
+        }
+        .rg-chart::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          opacity: .5;
+          background: repeating-conic-gradient(from 0deg at 0% 100%,#000 0deg 8deg,#111 8deg 16deg);
+          mask-image: linear-gradient(45deg,#000 0%,transparent 78%);
+          pointer-events: none;
         }
         .rg-multiplier {
           position: absolute;
           z-index: 2;
-          top: 39%;
+          top: 42%;
           left: 0;
           width: 100%;
-          transform: translateY(-50%);
           text-align: center;
           pointer-events: none;
         }
         .rg-multiplier strong {
           display: block;
-          font-size: clamp(38px, 10vw, 64px);
+          font-size: clamp(49px,12vw,92px);
           line-height: 1;
-          letter-spacing: -2px;
-          text-shadow: 0 2px 20px #000;
+          font-weight: 1000;
+          letter-spacing: -4px;
+          text-shadow: 0 3px 24px #0008;
         }
         .rg-multiplier span {
           display: block;
-          margin-top: 10px;
+          margin-top: 12px;
           font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 2.5px;
-          color: #9ba99c;
+          font-weight: 950;
+          letter-spacing: 2px;
+          color: #c4c4c4;
         }
         .rg-chart svg {
           position: absolute;
           inset: 0;
           width: 100%;
           height: 100%;
+          overflow: visible;
         }
         .rg-result {
           position: absolute;
-          z-index: 3;
-          bottom: 12px;
-          left: 8px;
-          right: 8px;
+          z-index: 4;
+          bottom: 13px;
+          left: 10px;
+          right: 10px;
           text-align: center;
           font-size: 12px;
           font-weight: 950;
-          letter-spacing: 1.5px;
+          letter-spacing: 1.6px;
         }
-        .rg-controls {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          gap: 12px;
-        }
-        .rg-field { min-width: 0; }
-        .rg-field label {
-          display: block;
-          margin-bottom: 7px;
-          color: #a5a5a5;
-          font-size: 10px;
-          font-weight: 850;
-          letter-spacing: .8px;
-          text-transform: uppercase;
-        }
-        .rg-bet-row {
+        .rg-flight-status {
           display: flex;
           align-items: center;
-          min-height: 46px;
-          border: 1px solid #373737;
-          border-radius: 10px;
-          overflow: hidden;
-          background: #090909;
+          justify-content: space-between;
+          gap: 8px;
+          margin: 0 0 12px;
+          color: #929292;
+          font-size: 10px;
+          font-weight: 800;
         }
-        .rg-bet-row button {
-          width: 40px;
-          flex-shrink: 0;
-          align-self: stretch;
+        .rg-live-dot {
+          display: inline-block;
+          width: 7px;
+          height: 7px;
+          margin-right: 6px;
+          border-radius: 50%;
+          background: ${GREEN};
+          box-shadow: 0 0 12px ${GREEN};
+        }
+        .rg-aviator-bet {
+          margin-top: 10px;
+          padding: clamp(10px,2.5vw,16px);
+          border: 1px solid #222;
+          border-radius: 20px;
+          background: linear-gradient(145deg,#202020,#151515);
+        }
+        .rg-bet-panel-top {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          margin-bottom: 12px;
+        }
+        .rg-mode-switch {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          width: min(100%,320px);
+          padding: 4px;
+          border-radius: 99px;
+          background: #111;
+        }
+        .rg-mode-switch button {
+          min-height: 36px;
           border: 0;
-          background: #202020;
-          color: ${GOLD};
-          font-size: 21px;
+          border-radius: 99px;
+          color: #999;
+          background: transparent;
+          font-size: 13px;
           cursor: pointer;
         }
-        .rg-bet-row input {
+        .rg-mode-switch button.selected {
+          background: #303033;
+          color: white;
+        }
+        .rg-mode-switch button:disabled { opacity: .55; }
+        .rg-panel-number {
+          position: absolute;
+          right: 0;
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          border: 1px solid #383838;
+          color: #aaa;
+          font-size: 11px;
+        }
+        .rg-auto-setting {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 0 0 12px;
+          color: #aaa;
+          font-size: 11px;
+        }
+        .rg-auto-setting div {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .rg-auto-setting input {
+          width: 90px;
+          min-height: 36px;
+          border: 1px solid #333;
+          border-radius: 8px;
+          background: #0b0b0b;
+          color: white;
+          padding: 0 8px;
+        }
+        .rg-panel-controls {
+          display: grid;
+          grid-template-columns: minmax(0,.78fr) minmax(0,1.22fr);
+          gap: 12px;
+        }
+        .rg-panel-left,.rg-panel-right { min-width: 0; }
+        .rg-amount-control {
+          display: flex;
+          align-items: center;
+          min-height: 48px;
+          overflow: hidden;
+          border-radius: 99px;
+          background: #111;
+        }
+        .rg-amount-control button {
+          flex: 0 0 38px;
+          width: 38px;
+          height: 38px;
+          margin: 4px;
+          border: 0;
+          border-radius: 50%;
+          background: #303033;
+          color: #ddd;
+          font-size: 24px;
+          cursor: pointer;
+        }
+        .rg-amount-control input {
           min-width: 0;
           width: 100%;
           border: 0;
-          outline: 0;
+          outline: none;
           background: transparent;
-          color: #fff;
+          color: white;
           text-align: center;
-          font-weight: 850;
-          font-size: 15px;
+          font-size: clamp(15px,4vw,22px);
+          font-weight: 900;
         }
-        .rg-main-btn {
-          width: 100%;
-          min-height: 46px;
-          padding: 8px 10px;
+        .rg-amount-control button:disabled { opacity: .45; }
+        .rg-quick-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+          margin-top: 8px;
+        }
+        .rg-quick {
+          min-width: 0;
+          min-height: 37px;
+          padding: 4px;
           border: 0;
-          border-radius: 10px;
-          background: ${GREEN};
-          color: #06130a;
-          font-weight: 950;
+          border-radius: 99px;
+          background: #111;
+          color: #999;
           font-size: 13px;
+          cursor: pointer;
+        }
+        .rg-quick:disabled { opacity: .45; }
+        .rg-place-bet {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          min-height: 103px;
+          padding: 10px 5px;
+          border: 2px solid #a3ff90;
+          border-radius: 17px;
+          background: #22ae0b;
+          color: white;
           cursor: pointer;
           transition: filter .15s ease, transform .15s ease;
         }
-        .rg-main-btn:active:not(:disabled) { transform: scale(.985); }
-        .rg-main-btn:hover:not(:disabled) { filter: brightness(1.06); }
-        .rg-main-btn.cashout { background: ${GOLD}; }
-        .rg-main-btn:disabled, .rg-bet-row button:disabled {
-          opacity: .48;
-          cursor: not-allowed;
+        .rg-place-bet span {
+          font-size: clamp(23px,6vw,38px);
+          line-height: 1.1;
+          font-weight: 500;
+        }
+        .rg-place-bet strong {
+          margin-top: 5px;
+          font-size: clamp(13px,3.8vw,22px);
+          font-weight: 600;
+        }
+        .rg-place-bet:active:not(:disabled) { transform: scale(.985); }
+        .rg-place-bet:hover:not(:disabled) { filter: brightness(1.08); }
+        .rg-place-bet:disabled { opacity: .55; cursor: not-allowed; }
+        .rg-place-bet.rg-cashout {
+          background: ${GOLD};
+          border-color: #ffe49a;
+          color: #17120a;
+        }
+        .rg-place-bet.rg-success {
+          background: #176a40;
+          border-color: #3eaa76;
+        }
+        .rg-place-bet.rg-lost {
+          background: #6b2029;
+          border-color: #b94552;
+        }
+        .rg-panel-payout {
+          margin-top: 10px;
+          color: #aaa;
+          font-size: 12px;
+        }
+        .rg-panel-payout strong { color: ${GREEN}; }
+        .rg-panel-foot {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          margin-top: 12px;
+          color: #777;
+          font-size: 10px;
         }
         .rg-message {
           margin-top: 14px;
@@ -693,7 +1166,7 @@ export default function RoyalGames() {
           color: #bbb;
           font-size: 12px;
         }
-        .rg-mines-settings select, .rg-select {
+        .rg-mines-settings select {
           min-height: 42px;
           max-width: 100%;
           border: 1px solid #383838;
@@ -704,7 +1177,7 @@ export default function RoyalGames() {
         }
         .rg-mines-grid {
           display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
+          grid-template-columns: repeat(5,minmax(0,1fr));
           gap: 8px;
           margin: 16px 0;
         }
@@ -713,32 +1186,29 @@ export default function RoyalGames() {
           min-width: 0;
           border: 1px solid #3c483e;
           border-radius: 9px;
-          background: linear-gradient(145deg, #233b2a, #142219);
+          background: linear-gradient(145deg,#233b2a,#142219);
           color: ${GOLD};
-          font-size: clamp(17px, 5vw, 25px);
+          font-size: clamp(17px,5vw,25px);
           font-weight: 900;
           cursor: pointer;
-          transition: transform .15s ease, filter .15s ease;
         }
-        .rg-tile:active:not(:disabled) { transform: scale(.95); }
         .rg-tile:disabled { cursor: default; opacity: .95; }
         .rg-dice-card {
-          padding: clamp(18px, 5vw, 32px) 12px;
+          padding: clamp(18px,5vw,32px) 12px;
           margin: 8px 0 16px;
           border: 1px solid #3b3320;
           border-radius: 15px;
           text-align: center;
-          background: radial-gradient(ellipse at top, #282315, #11100c 75%);
+          background: radial-gradient(ellipse at top,#282315,#11100c 75%);
         }
         .rg-dice-number {
           min-height: 90px;
           display: grid;
           place-items: center;
-          font-size: clamp(42px, 12vw, 70px);
+          font-size: clamp(42px,12vw,70px);
           font-weight: 950;
           letter-spacing: -2px;
           color: ${GOLD};
-          font-variant-numeric: tabular-nums;
         }
         .rg-dice-status {
           color: #999;
@@ -756,7 +1226,7 @@ export default function RoyalGames() {
         .rg-dice-fill {
           height: 100%;
           border-radius: inherit;
-          background: linear-gradient(90deg, ${GREEN}, ${GOLD});
+          background: linear-gradient(90deg,${GREEN},${GOLD});
           transition: width .25s ease;
         }
         .rg-dice-marker {
@@ -770,7 +1240,7 @@ export default function RoyalGames() {
         }
         .rg-dice-settings {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-columns: 1fr 1fr;
           gap: 12px;
           margin-bottom: 15px;
         }
@@ -797,12 +1267,19 @@ export default function RoyalGames() {
           color: ${GOLD};
           font-size: 17px;
         }
-        @media (max-width: 380px) {
-          .rg-panel { padding: 10px; }
-          .rg-tab { font-size: 11px; }
-          .rg-controls { gap: 8px; }
-          .rg-bet-row button { width: 32px; }
-          .rg-mines-grid { gap: 5px; }
+        @media (max-width: 420px) {
+          .rg-panel { padding: 9px; }
+          .rg-aviator-bet { padding: 9px; border-radius: 16px; }
+          .rg-panel-controls { gap: 7px; grid-template-columns: minmax(0,.82fr) minmax(0,1.18fr); }
+          .rg-amount-control button { flex-basis: 30px; width: 30px; height: 30px; margin: 3px; }
+          .rg-amount-control { min-height: 42px; }
+          .rg-quick { min-height: 33px; font-size: 12px; }
+          .rg-place-bet { min-height: 95px; }
+          .rg-panel-foot { font-size: 9px; }
+          .rg-history { gap: 13px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .royal-games * { transition: none !important; }
         }
       `}</style>
 
@@ -813,7 +1290,7 @@ export default function RoyalGames() {
           onClick={() => switchGame("aviator")}
           disabled={playing || loading || minesStarted}
         >
-          🚀 Aviator
+          ✈️ Aviator
         </button>
         <button
           type="button"
@@ -835,22 +1312,37 @@ export default function RoyalGames() {
 
       <div className="rg-panel">
         <div className="rg-heading">
-          <h2>
-            {game === "aviator"
-              ? "🚀 AVIATOR"
-              : game === "dice"
-                ? "🎲 ROYAL DICE"
-                : "💣 MINES"}
-          </h2>
+          {game === "aviator" ? (
+            <div className="rg-brand">
+              <span className="rg-brand-icon">✈</span>
+              <span>Aviator</span>
+            </div>
+          ) : (
+            <h2>{game === "dice" ? "🎲 ROYAL DICE" : "💣 MINES"}</h2>
+          )}
+
           <div className="rg-balance">
             {balance === null
               ? "Balance updates after play"
-              : `Balance: ${formatMoney(balance)}`}
+              : `Balance: ${formatMoney(balance)} USDT`}
           </div>
         </div>
 
         {game === "aviator" && (
           <>
+            <div className="rg-history" aria-label="Recent round multipliers">
+              {history.map((value, index) => (
+                <span
+                  key={`${value}-${index}`}
+                  className={`rg-history-item ${
+                    value >= 2 ? (value >= 5 ? "high" : "mid") : "low"
+                  }`}
+                >
+                  {value.toFixed(2)}x
+                </span>
+              ))}
+            </div>
+
             <div className="rg-chart">
               <div className="rg-multiplier">
                 <strong
@@ -858,11 +1350,11 @@ export default function RoyalGames() {
                     color: crashed ? RED : cashedOut ? GOLD : "#fff",
                   }}
                 >
-                  {crashed ? "CRASHED" : `${multiplier.toFixed(2)}×`}
+                  {crashed ? `${multiplier.toFixed(2)}×` : `${multiplier.toFixed(2)}×`}
                 </strong>
                 <span>
                   {crashed
-                    ? "ROUND OVER"
+                    ? "FLIGHT CRASHED"
                     : cashedOut
                       ? "CASHED OUT"
                       : playing
@@ -871,32 +1363,34 @@ export default function RoyalGames() {
                 </span>
               </div>
 
-              <svg viewBox="0 0 320 320" preserveAspectRatio="none">
+              <svg viewBox="0 0 320 320" preserveAspectRatio="none" aria-label="Aviator flight trajectory">
                 <defs>
-                  <linearGradient
-                    id="royalAviatorFill"
-                    x1="0"
-                    y1="1"
-                    x2="1"
-                    y2="0"
-                  >
-                    <stop offset="0%" stopColor={GREEN} stopOpacity=".02" />
-                    <stop offset="100%" stopColor={GREEN} stopOpacity=".28" />
+                  <linearGradient id="royalAviatorFill" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0%" stopColor={RED} stopOpacity=".45" />
+                    <stop offset="100%" stopColor={RED} stopOpacity=".01" />
                   </linearGradient>
+                  <filter id="royalRocketGlow">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
                 </defs>
 
                 <path
-                  d={`${chartPath} L ${rocketX} 282 L 18 282 Z`}
+                  d={`${chartPath} L ${rocketX} 318 L 10 318 Z`}
                   fill="url(#royalAviatorFill)"
                 />
 
                 <path
                   d={chartPath}
                   fill="none"
-                  stroke={crashed ? RED : cashedOut ? GOLD : GREEN}
-                  strokeWidth="3.5"
+                  stroke={crashed ? RED : cashedOut ? GOLD : RED}
+                  strokeWidth="4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  filter="url(#royalRocketGlow)"
                 />
 
                 {!crashed && !cashedOut && (
@@ -904,117 +1398,51 @@ export default function RoyalGames() {
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize="28"
+                      fontSize="29"
                     >
-                      🚀
+                      ✈️
                     </text>
                   </g>
                 )}
 
                 {crashed && (
                   <g transform={`translate(${rocketX},${rocketY})`}>
-                    <circle
-                      r="24"
-                      fill={RED}
-                      fillOpacity=".18"
-                      stroke={RED}
-                      strokeWidth="2"
-                    />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="24"
-                    >
-                      💥
-                    </text>
+                    <circle r="25" fill={RED} fillOpacity=".2" stroke={RED} strokeWidth="2" />
+                    <text textAnchor="middle" dominantBaseline="central" fontSize="24">💥</text>
                   </g>
                 )}
 
                 {cashedOut && (
                   <g transform={`translate(${rocketX},${rocketY})`}>
-                    <circle r="21" fill={GOLD} fillOpacity=".2" />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="22"
-                    >
-                      ✓
-                    </text>
+                    <circle r="22" fill={GOLD} fillOpacity=".2" />
+                    <text textAnchor="middle" dominantBaseline="central" fontSize="22" fill={GOLD}>✓</text>
                   </g>
                 )}
               </svg>
 
               {(crashed || cashedOut) && (
-                <div
-                  className="rg-result"
-                  style={{ color: crashed ? RED : GOLD }}
-                >
+                <div className="rg-result" style={{ color: crashed ? RED : GOLD }}>
                   {flightResult}
                 </div>
               )}
             </div>
 
-            <div className="rg-controls">
-              <div className="rg-field">
-                <label htmlFor="aviator-bet">Bet amount</label>
-                <div className="rg-bet-row">
-                  <button
-                    type="button"
-                    disabled={playing || loading}
-                    onClick={() => changeBet(bet - 10)}
-                  >
-                    −
-                  </button>
-                  <input
-                    id="aviator-bet"
-                    type="number"
-                    min={MIN_BET}
-                    max={MAX_BET}
-                    step="1"
-                    value={bet}
-                    disabled={playing || loading}
-                    onChange={(event) =>
-                      changeBet(Number(event.target.value) || MIN_BET)
-                    }
-                  />
-                  <button
-                    type="button"
-                    disabled={playing || loading}
-                    onClick={() => changeBet(bet + 10)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="rg-field">
-                <label>{playing ? "Live round" : "Action"}</label>
-                {playing ? (
-                  <button
-                    type="button"
-                    className="rg-main-btn cashout"
-                    onClick={cashOutAviator}
-                    disabled={loading}
-                  >
-                    {loading ? "PROCESSING…" : "CASH OUT"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="rg-main-btn"
-                    onClick={startAviator}
-                    disabled={loading}
-                  >
-                    {loading ? "STARTING…" : "🚀 START FLIGHT"}
-                  </button>
-                )}
-              </div>
+            <div className="rg-flight-status">
+              <span>
+                <span className="rg-live-dot" />
+                {playing ? "LIVE ROUND" : "WAITING FOR NEXT ROUND"}
+              </span>
+              <span>{playing ? "Cash out before the crash" : "Place your bet to start"}</span>
             </div>
 
+            {renderAviatorPanel(1)}
+            {renderAviatorPanel(2)}
+
             <p className="rg-note">
-              Minimum bet {MIN_BET}. Maximum bet {MAX_BET}. The multiplier
-              rises during the flight. Cash out before the server-determined
-              crash point. A displayed multiplier does not guarantee a payout.
+              Minimum bet {MIN_BET} USDT. Maximum bet {MAX_BET} USDT. The
+              multiplier and crash outcome are controlled by the server.
+              Historical multipliers shown here are illustrative until connected
+              to a real round-history endpoint.
             </p>
           </>
         )}
@@ -1025,12 +1453,7 @@ export default function RoyalGames() {
               <div
                 className="rg-dice-number"
                 style={{
-                  color:
-                    diceWon === null
-                      ? GOLD
-                      : diceWon
-                        ? GREEN
-                        : RED,
+                  color: diceWon === null ? GOLD : diceWon ? GREEN : RED,
                 }}
               >
                 {diceRoll === null ? "— —. — —" : diceRoll.toFixed(2)}
@@ -1047,14 +1470,8 @@ export default function RoyalGames() {
               </div>
 
               <div className="rg-dice-track">
-                <div
-                  className="rg-dice-fill"
-                  style={{ width: `${diceTarget}%` }}
-                />
-                <div
-                  className="rg-dice-marker"
-                  style={{ left: `${diceTarget}%` }}
-                />
+                <div className="rg-dice-fill" style={{ width: `${diceTarget}%` }} />
+                <div className="rg-dice-marker" style={{ left: `${diceTarget}%` }} />
               </div>
             </div>
 
@@ -1079,70 +1496,39 @@ export default function RoyalGames() {
                   step="1"
                   value={diceTarget}
                   disabled={loading}
-                  onChange={(event) =>
-                    setDiceTarget(Number(event.target.value))
-                  }
+                  onChange={(event) => setDiceTarget(Number(event.target.value))}
                 />
               </div>
             </div>
 
-            <div className="rg-controls">
-              <div className="rg-field">
-                <label htmlFor="dice-bet">Bet amount</label>
-                <div className="rg-bet-row">
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => changeBet(bet - 10)}
-                  >
-                    −
-                  </button>
+            <div className="rg-panel-controls">
+              <div className="rg-panel-left">
+                <div className="rg-amount-control">
+                  <button type="button" disabled={loading} onClick={() => changeBet(bet - 10)}>−</button>
                   <input
-                    id="dice-bet"
+                    aria-label="Dice bet amount"
                     type="number"
                     min={MIN_BET}
                     max={MAX_BET}
                     step="1"
                     value={bet}
                     disabled={loading}
-                    onChange={(event) =>
-                      changeBet(Number(event.target.value) || MIN_BET)
-                    }
+                    onChange={(event) => changeBet(Number(event.target.value) || MIN_BET)}
                   />
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => changeBet(bet + 10)}
-                  >
-                    +
-                  </button>
+                  <button type="button" disabled={loading} onClick={() => changeBet(bet + 10)}>+</button>
                 </div>
               </div>
-              <div className="rg-field">
-                <label>Place your roll</label>
-                <button
-                  type="button"
-                  className="rg-main-btn"
-                  onClick={playDice}
-                  disabled={loading}
-                >
-                  {loading ? "ROLLING…" : "🎲 ROLL DICE"}
+              <div className="rg-panel-right">
+                <button type="button" className="rg-place-bet" onClick={playDice} disabled={loading}>
+                  <span>{loading ? "ROLLING…" : "ROLL DICE"}</span>
+                  <strong>{formatMoney(bet)} USDT</strong>
                 </button>
               </div>
             </div>
 
             {dicePayout !== null && (
-              <p className="rg-note">
-                Last payout: {formatMoney(dicePayout)}. The server must
-                determine the actual roll and payout.
-              </p>
+              <p className="rg-note">Last payout: {formatMoney(dicePayout)} USDT.</p>
             )}
-
-            <p className="rg-note">
-              Minimum bet {MIN_BET}. Maximum bet {MAX_BET}. The displayed
-              multiplier is indicative; the server must apply its configured
-              payout rules.
-            </p>
           </>
         )}
 
@@ -1156,17 +1542,13 @@ export default function RoyalGames() {
                 disabled={minesStarted || loading}
                 onChange={(event) => setMineCount(Number(event.target.value))}
               >
-                {Array.from({ length: 24 }, (_, index) => index + 1).map(
-                  (count) => (
-                    <option key={count} value={count}>
-                      {count} {count === 1 ? "mine" : "mines"}
-                    </option>
-                  )
-                )}
+                {Array.from({ length: 24 }, (_, index) => index + 1).map((count) => (
+                  <option key={count} value={count}>
+                    {count} {count === 1 ? "mine" : "mines"}
+                  </option>
+                ))}
               </select>
-              <strong style={{ color: GOLD }}>
-                {minesMultiplier.toFixed(2)}×
-              </strong>
+              <strong style={{ color: GOLD }}>{minesMultiplier.toFixed(2)}×</strong>
             </div>
 
             <div className="rg-mines-grid">
@@ -1189,66 +1571,45 @@ export default function RoyalGames() {
               })}
             </div>
 
-            <div className="rg-controls">
-              <div className="rg-field">
-                <label htmlFor="mines-bet">Bet amount</label>
-                <div className="rg-bet-row">
-                  <button
-                    type="button"
-                    disabled={minesStarted || loading}
-                    onClick={() => changeBet(bet - 10)}
-                  >
-                    −
-                  </button>
+            <div className="rg-panel-controls">
+              <div className="rg-panel-left">
+                <div className="rg-amount-control">
+                  <button type="button" disabled={minesStarted || loading} onClick={() => changeBet(bet - 10)}>−</button>
                   <input
-                    id="mines-bet"
+                    aria-label="Mines bet amount"
                     type="number"
                     min={MIN_BET}
                     max={MAX_BET}
                     step="1"
                     value={bet}
                     disabled={minesStarted || loading}
-                    onChange={(event) =>
-                      changeBet(Number(event.target.value) || MIN_BET)
-                    }
+                    onChange={(event) => changeBet(Number(event.target.value) || MIN_BET)}
                   />
-                  <button
-                    type="button"
-                    disabled={minesStarted || loading}
-                    onClick={() => changeBet(bet + 10)}
-                  >
-                    +
-                  </button>
+                  <button type="button" disabled={minesStarted || loading} onClick={() => changeBet(bet + 10)}>+</button>
                 </div>
               </div>
-
-              <div className="rg-field">
-                <label>{minesStarted ? "Secure winnings" : "Begin round"}</label>
+              <div className="rg-panel-right">
                 {minesStarted ? (
                   <button
                     type="button"
-                    className="rg-main-btn cashout"
+                    className="rg-place-bet rg-cashout"
                     disabled={loading || revealedTiles.length === 0}
                     onClick={cashOutMines}
                   >
-                    {loading ? "PROCESSING…" : "CASH OUT"}
+                    <span>{loading ? "PROCESSING…" : "CASH OUT"}</span>
+                    <strong>{formatMoney(bet * minesMultiplier)} USDT</strong>
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="rg-main-btn"
-                    disabled={loading}
-                    onClick={startMines}
-                  >
-                    {loading ? "STARTING…" : "START ROUND"}
+                  <button type="button" className="rg-place-bet" disabled={loading} onClick={startMines}>
+                    <span>{loading ? "STARTING…" : "START ROUND"}</span>
+                    <strong>{formatMoney(bet)} USDT</strong>
                   </button>
                 )}
               </div>
             </div>
 
             <p className="rg-note">
-              Choose your mine count, reveal safe tiles, and cash out before
-              hitting a mine.
+              Choose your mine count, reveal safe tiles, and cash out before hitting a mine.
             </p>
           </>
         )}
@@ -1256,11 +1617,7 @@ export default function RoyalGames() {
         {message && (
           <div
             className={`rg-message ${
-              messageType === "good"
-                ? "rg-good"
-                : messageType === "bad"
-                  ? "rg-bad"
-                  : "rg-info"
+              messageType === "good" ? "rg-good" : messageType === "bad" ? "rg-bad" : "rg-info"
             }`}
             role="status"
             aria-live="polite"
