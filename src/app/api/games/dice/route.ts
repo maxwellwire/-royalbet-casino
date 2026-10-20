@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { randomInt } from "node:crypto";
 
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const diceSchema = z.object({
-  bet: z.number().finite().min(1).max(100).refine(
-    (value) => Math.round(value * 100) === value * 100,
-    "Bet must have no more than two decimal places."
-  ),
-  target: z.number().int().min(2).max(95),
-});
+const MIN_BET = 10;
+const MAX_BET = 1000;
+const TARGET = 50;
+const MULTIPLIER = 1.94;
 
 export async function POST(request: Request) {
   try {
@@ -20,135 +18,117 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Please log in to play Dice." },
+        { success: false, error: "Please log in to play." },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-    const parsed = diceSchema.safeParse(body);
+    const bet = Number(body.bet);
 
-    if (!parsed.success) {
+    if (
+      !Number.isFinite(bet) ||
+      bet < MIN_BET ||
+      bet > MAX_BET ||
+      Math.round(bet * 100) !== bet * 100
+    ) {
       return NextResponse.json(
-        { error: "Invalid bet or target number." },
+        { success: false, error: "Bet must be between 10 and 1,000." },
         { status: 400 }
       );
     }
 
-    const { bet, target } = parsed.data;
+    const roll = randomInt(0, 10000) / 100;
+    const won = roll < TARGET;
+
+    const payout = won
+      ? Math.round(bet * MULTIPLIER * 100) / 100
+      : 0;
+
+    const net = Math.round((payout - bet) * 100) / 100;
 
     const result = await prisma.$transaction(async (tx) => {
-      const currentUser = await tx.user.findUnique({
+      const account = await tx.user.findUnique({
         where: { id: user.id },
-        select: { id: true, balance: true },
+        select: { balance: true },
       });
 
-      if (!currentUser) {
-        throw new Error("USER_NOT_FOUND");
-      }
-
-      const balance = Number(currentUser.balance);
-
-      if (!Number.isFinite(balance) || balance < 10) {
-        throw new Error("MINIMUM_BALANCE");
-      }
-
-      if (balance < bet) {
+      if (!account || Number(account.balance) < bet) {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      const updated = await tx.user.updateMany({
-        where: {
-          id: user.id,
-          balance: { gte: bet },
-        },
+      const updated = await tx.user.update({
+        where: { id: user.id },
         data: {
-          balance: { decrement: bet },
+          balance: {
+            decrement: bet,
+          },
         },
+        select: { balance: true },
       });
 
-      if (updated.count !== 1) {
-        throw new Error("INSUFFICIENT_BALANCE");
-      }
-
-      // Secure random roll generated on the server.
-      const roll = crypto.getRandomValues(new Uint32Array(1))[0] % 100 + 1;
-      const won = roll <= target;
-
-      // Gross payout includes the original wager.
-      const multiplier = won ? 95 / target : 0;
-      const payout = won ? Math.floor(bet * multiplier * 100) / 100 : 0;
-      const profit = Math.round((payout - bet) * 100) / 100;
+      let finalBalance = Number(updated.balance);
 
       if (payout > 0) {
-        await tx.user.update({
+        const paid = await tx.user.update({
           where: { id: user.id },
           data: {
-            balance: { increment: payout },
+            balance: {
+              increment: payout,
+            },
           },
+          select: { balance: true },
         });
+
+        finalBalance = Number(paid.balance);
       }
 
       await tx.gameHistory.create({
         data: {
           userId: user.id,
           game: "dice",
-          betAmount: bet,
+          bet,
           payout,
-          result: JSON.stringify({
-            roll,
-            target,
-            won,
-            multiplier,
-          }),
+          net,
+          result: won
+            ? `Won: rolled ${roll.toFixed(2)} under ${TARGET}`
+            : `Lost: rolled ${roll.toFixed(2)}`,
         },
       });
 
-      const latestUser = await tx.user.findUnique({
-        where: { id: user.id },
-        select: { balance: true },
-      });
-
       return {
-        result: roll,
-        won,
-        bet,
-        multiplier: won ? Math.round(multiplier * 100) / 100 : 0,
-        profit,
-        balance: Number(latestUser?.balance ?? 0),
+        balance: finalBalance,
       };
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      success: true,
+      game: "dice",
+      bet,
+      roll,
+      target: TARGET,
+      won,
+      multiplier: won ? MULTIPLIER : 0,
+      payout,
+      net,
+      balance: result.balance,
+      message: won ? "You won!" : "Better luck next time!",
+    });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Something went wrong.";
-
-    if (message === "MINIMUM_BALANCE") {
+    if (
+      error instanceof Error &&
+      error.message === "INSUFFICIENT_BALANCE"
+    ) {
       return NextResponse.json(
-        { error: "You need at least 10 USDT in your balance to play." },
+        { success: false, error: "Insufficient balance." },
         { status: 400 }
-      );
-    }
-
-    if (message === "INSUFFICIENT_BALANCE") {
-      return NextResponse.json(
-        { error: "Your balance is insufficient for this bet." },
-        { status: 400 }
-      );
-    }
-
-    if (message === "USER_NOT_FOUND") {
-      return NextResponse.json(
-        { error: "Account not found." },
-        { status: 404 }
       );
     }
 
     console.error("Dice game error:", error);
 
     return NextResponse.json(
-      { error: "Unable to play Dice right now. Please try again." },
+      { success: false, error: "Unable to play Dice right now." },
       { status: 500 }
     );
   }
