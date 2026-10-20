@@ -40,24 +40,26 @@ export async function POST() {
       startedAt?: number;
     };
 
+    const bet = Number(state.bet);
     const crashAt = Number(state.crashAt);
     const startedAt = Number(state.startedAt);
 
     if (
+      !Number.isFinite(bet) ||
       !Number.isFinite(crashAt) ||
       !Number.isFinite(startedAt) ||
+      bet <= 0 ||
       crashAt < 1 ||
       startedAt <= 0
     ) {
       return NextResponse.json(
-        { success: false, error: "Invalid game round." },
+        { success: false, error: "Invalid Aviator round." },
         { status: 500 }
       );
     }
 
     const elapsed = Math.max(0, Date.now() - startedAt);
 
-    // Keep this formula consistent with the cash-out endpoint.
     const multiplier = Math.max(
       1,
       Math.floor(Math.exp(elapsed / 5000) * 100) / 100
@@ -80,6 +82,18 @@ export async function POST() {
         },
       });
 
+      if (finished.count === 1) {
+        await prisma.gameHistory.create({
+          data: {
+            userId: user.id,
+            game: "aviator",
+            betAmount: bet,
+            payout: 0,
+            result: `Crashed at ${crashAt.toFixed(2)}x`,
+          },
+        });
+      }
+
       const account = await prisma.user.findUnique({
         where: { id: user.id },
         select: { balance: true },
@@ -90,7 +104,6 @@ export async function POST() {
         active: false,
         crashed: true,
         crashAt,
-        alreadyFinished: finished.count === 0,
         balance: account ? Number(account.balance) : 0,
       });
     }
