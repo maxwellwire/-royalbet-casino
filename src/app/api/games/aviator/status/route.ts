@@ -40,16 +40,14 @@ export async function POST() {
       startedAt?: number;
     };
 
-    const bet = Number(state.bet);
     const crashAt = Number(state.crashAt);
     const startedAt = Number(state.startedAt);
 
     if (
-      !Number.isFinite(bet) ||
       !Number.isFinite(crashAt) ||
       !Number.isFinite(startedAt) ||
-      bet <= 0 ||
-      crashAt < 1
+      crashAt < 1 ||
+      startedAt <= 0
     ) {
       return NextResponse.json(
         { success: false, error: "Invalid game round." },
@@ -59,12 +57,13 @@ export async function POST() {
 
     const elapsed = Math.max(0, Date.now() - startedAt);
 
-    const multiplier =
-      Math.floor(Math.exp(elapsed / 5000) * 100) / 100;
+    // Keep this formula consistent with the cash-out endpoint.
+    const multiplier = Math.max(
+      1,
+      Math.floor(Math.exp(elapsed / 5000) * 100) / 100
+    );
 
-    const currentMultiplier = Math.max(1, multiplier);
-
-    if (currentMultiplier >= crashAt) {
+    if (multiplier >= crashAt) {
       const finished = await prisma.activeGame.updateMany({
         where: {
           id: round.id,
@@ -81,19 +80,6 @@ export async function POST() {
         },
       });
 
-      if (finished.count === 1) {
-        await prisma.gameHistory.create({
-          data: {
-            userId: user.id,
-            game: "aviator",
-            bet,
-            payout: 0,
-            net: -bet,
-            result: `Crashed at ${crashAt.toFixed(2)}x`,
-          },
-        });
-      }
-
       const account = await prisma.user.findUnique({
         where: { id: user.id },
         select: { balance: true },
@@ -104,7 +90,8 @@ export async function POST() {
         active: false,
         crashed: true,
         crashAt,
-        balance: account?.balance ?? 0,
+        alreadyFinished: finished.count === 0,
+        balance: account ? Number(account.balance) : 0,
       });
     }
 
@@ -116,9 +103,9 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       active: true,
-      multiplier: currentMultiplier,
+      multiplier,
       crashAt,
-      balance: account?.balance ?? 0,
+      balance: account ? Number(account.balance) : 0,
     });
   } catch (error) {
     console.error("Aviator status error:", error);
